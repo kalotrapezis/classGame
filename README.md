@@ -1,4 +1,4 @@
-# ClassGame (v0.1.0-alpha)
+# ClassGame (v0.1.1-alpha)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 

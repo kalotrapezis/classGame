@@ -144,8 +144,14 @@ function startDrawing(e) {
     [lastX, lastY] = getCoordinates(e);
 
     if (currentTool === 'fill') {
-        fillCanvas(currentColor);
-        socket.emit('draw-action', { roomId: gameState.roomId, type: 'fill', color: currentColor });
+        floodFill(lastX, lastY, currentColor);
+        socket.emit('draw-action', {
+            roomId: gameState.roomId,
+            type: 'fill',
+            x: lastX,
+            y: lastY,
+            color: currentColor
+        });
         isDrawing = false;
     } else {
         draw(e);
@@ -212,6 +218,67 @@ function drawLine(x1, y1, x2, y2, color, size) {
 function fillCanvas(color) {
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function floodFill(x, y, fillColor) {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const targetColor = getPixelColor(imageData, x, y);
+
+    // Convert hex color to RGB
+    const r = parseInt(fillColor.substr(1, 2), 16);
+    const g = parseInt(fillColor.substr(3, 2), 16);
+    const b = parseInt(fillColor.substr(5, 2), 16);
+    const fillColorRGB = { r, g, b, a: 255 };
+
+    // Don't fill if already the same color
+    if (colorsMatch(targetColor, fillColorRGB)) return;
+
+    const pixelsToCheck = [{ x: Math.floor(x), y: Math.floor(y) }];
+    const checked = new Set();
+
+    while (pixelsToCheck.length > 0) {
+        const { x: currentX, y: currentY } = pixelsToCheck.pop();
+        const key = `${currentX},${currentY}`;
+
+        if (checked.has(key)) continue;
+        if (currentX < 0 || currentX >= canvas.width || currentY < 0 || currentY >= canvas.height) continue;
+
+        checked.add(key);
+
+        const currentColor = getPixelColor(imageData, currentX, currentY);
+        if (!colorsMatch(currentColor, targetColor)) continue;
+
+        setPixelColor(imageData, currentX, currentY, fillColorRGB);
+
+        pixelsToCheck.push({ x: currentX + 1, y: currentY });
+        pixelsToCheck.push({ x: currentX - 1, y: currentY });
+        pixelsToCheck.push({ x: currentX, y: currentY + 1 });
+        pixelsToCheck.push({ x: currentX, y: currentY - 1 });
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function getPixelColor(imageData, x, y) {
+    const index = (Math.floor(y) * imageData.width + Math.floor(x)) * 4;
+    return {
+        r: imageData.data[index],
+        g: imageData.data[index + 1],
+        b: imageData.data[index + 2],
+        a: imageData.data[index + 3]
+    };
+}
+
+function setPixelColor(imageData, x, y, color) {
+    const index = (Math.floor(y) * imageData.width + Math.floor(x)) * 4;
+    imageData.data[index] = color.r;
+    imageData.data[index + 1] = color.g;
+    imageData.data[index + 2] = color.b;
+    imageData.data[index + 3] = color.a;
+}
+
+function colorsMatch(c1, c2) {
+    return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b && c1.a === c2.a;
 }
 
 function clearCanvas() {
@@ -502,6 +569,13 @@ socket.on('drawing-phase-start', (data) => {
     // Show dashes
     const dashes = new Array(data.wordLength).fill('_').join(' ');
     document.getElementById('word-display').textContent = dashes;
+
+    // Show toolbar for drawer
+    const isDrawer = gameState.drawerId === socket.id;
+    const toolbar = document.querySelector('.toolbar');
+    if (toolbar) {
+        toolbar.style.display = isDrawer ? 'flex' : 'none';
+    }
 });
 
 socket.on('your-word', (word) => {
@@ -524,7 +598,7 @@ socket.on('draw-line', (data) => {
 
 socket.on('draw-action', (data) => {
     if (data.type === 'clear') clearCanvas();
-    if (data.type === 'fill') fillCanvas(data.color);
+    if (data.type === 'fill') floodFill(data.x, data.y, data.color);
 });
 
 // --- RENDER HELPERS ---
