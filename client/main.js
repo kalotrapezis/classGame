@@ -1,0 +1,570 @@
+import { io } from "socket.io-client";
+import './style.css';
+
+// Connect to server
+const serverUrl = window.location.origin;
+const socket = io(serverUrl);
+
+console.log(`Connecting to ClassGame server at: ${serverUrl}`);
+
+// --- STATE ---
+let gameState = {
+    screen: 'landing', // landing, lobby, game
+    name: '',
+    avatar: {
+        emoji: '😀'
+    },
+    isHost: false,
+    roomId: null,
+    players: [],
+    drawerId: null,
+    settings: {
+        rounds: 3,
+        drawTime: 80,
+        wordCount: 3,
+        customWords: ''
+    }
+};
+
+// --- DOM ELEMENTS ---
+const screens = {
+    landing: document.getElementById('screen-landing'),
+    lobby: document.getElementById('screen-lobby'),
+    game: document.getElementById('screen-game')
+};
+
+// Landing
+const inputName = document.getElementById('input-name');
+const btnPlay = document.getElementById('btn-play');
+const btnCreateRoom = document.getElementById('btn-create-room');
+const btnRandomAvatar = document.getElementById('btn-random-avatar');
+const avatarPreview = document.getElementById('avatar-preview');
+
+// Lobby
+const lobbyInviteLink = document.getElementById('lobby-invite-link');
+const btnCopyLink = document.getElementById('btn-copy-invite');
+const lobbyPlayerList = document.getElementById('lobby-player-list');
+const lobbyPlayerCount = document.getElementById('lobby-player-count');
+const btnStartGame = document.getElementById('btn-start-game');
+const lobbyChatMessages = document.getElementById('lobby-chat-messages');
+const lobbyChatInput = document.getElementById('lobby-chat-input');
+const serverIpSpan = document.getElementById('server-ip');
+
+// Settings Inputs
+const settingRounds = document.getElementById('setting-rounds');
+const settingDrawTime = document.getElementById('setting-draw-time');
+const settingWordCount = document.getElementById('setting-word-count');
+const settingCustomWords = document.getElementById('setting-custom-words');
+const settingMyWordsOnly = document.getElementById('setting-my-words-only');
+
+// Game
+const gamePlayerList = document.getElementById('game-player-list');
+const gameChatMessages = document.getElementById('game-chat-messages');
+const gameChatInput = document.getElementById('game-chat-input');
+const canvas = document.getElementById('drawing-canvas');
+const ctx = canvas.getContext('2d');
+
+// --- INITIALIZATION ---
+function init() {
+    // Restore name/avatar from local storage if available
+    const savedName = localStorage.getItem('classgame_name');
+    if (savedName) inputName.value = savedName;
+
+    renderAvatar();
+    initializeColorPalette();
+
+    // Check for room ID in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+    if (roomFromUrl) {
+        btnPlay.textContent = "Join Room";
+    }
+}
+
+function initializeColorPalette() {
+    const colors = [
+        '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00',
+        '#ff00ff', '#00ffff', '#ffa500', '#800080', '#808080', '#a52a2a'
+    ];
+
+    const palette = document.getElementById('color-palette');
+    colors.forEach((color, i) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        if (i === 0) swatch.classList.add('active');
+        swatch.style.backgroundColor = color;
+        swatch.dataset.color = color;
+        swatch.addEventListener('click', () => {
+            document.querySelector('.color-swatch.active')?.classList.remove('active');
+            swatch.classList.add('active');
+            currentColor = color;
+            if (currentTool === 'eraser') {
+                setActiveTool('pencil');
+            }
+        });
+        palette.appendChild(swatch);
+    });
+}
+
+// --- NAVIGATION ---
+function showScreen(screenName) {
+    Object.values(screens).forEach(s => s.classList.add('hidden'));
+    screens[screenName].classList.remove('hidden');
+    gameState.screen = screenName;
+
+    if (screenName === 'game') {
+        setTimeout(resizeCanvas, 100);
+    }
+}
+
+// --- AVATAR LOGIC ---
+function renderAvatar() {
+    avatarPreview.textContent = gameState.avatar.emoji;
+}
+
+function randomizeAvatar() {
+    const emojis = ['😀', '😎', '🤓', '😊', '🥳', '🤩', '😇', '🤠', '🥸', '🤡', '👻', '👽', '🤖', '🐶', '🐱', '🐼'];
+    gameState.avatar.emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    renderAvatar();
+}
+
+// --- DRAWING LOGIC ---
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+let currentTool = 'brush'; // brush, eraser, fill
+let currentColor = '#000000';
+let currentSize = 5;
+
+function startDrawing(e) {
+    if (gameState.screen !== 'game') return;
+    if (!document.getElementById('canvas-overlay').classList.contains('hidden')) return;
+
+    isDrawing = true;
+    [lastX, lastY] = getCoordinates(e);
+
+    if (currentTool === 'fill') {
+        fillCanvas(currentColor);
+        socket.emit('draw-action', { roomId: gameState.roomId, type: 'fill', color: currentColor });
+        isDrawing = false;
+    } else {
+        draw(e);
+    }
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+
+    const [x, y] = getCoordinates(e);
+
+    // Eraser is just drawing with white (or background color)
+    const color = currentTool === 'eraser' ? '#ffffff' : currentColor;
+
+    drawLine(lastX, lastY, x, y, color, currentSize);
+
+    socket.emit('draw-line', {
+        roomId: gameState.roomId,
+        from: { x: lastX, y: lastY },
+        to: { x, y },
+        color: color,
+        size: currentSize
+    });
+
+    [lastX, lastY] = [x, y];
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+function getCoordinates(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    let clientX, clientY;
+    if (e.type.startsWith('touch')) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+
+    return [
+        (clientX - rect.left) * scaleX,
+        (clientY - rect.top) * scaleY
+    ];
+}
+
+function drawLine(x1, y1, x2, y2, color, size) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.closePath();
+}
+
+function fillCanvas(color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function resizeCanvas() {
+    const container = document.querySelector('.game-canvas-container');
+    if (container) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight - 50;
+    }
+}
+window.addEventListener('resize', resizeCanvas);
+
+// --- EVENT LISTENERS ---
+
+btnRandomAvatar.addEventListener('click', randomizeAvatar);
+
+// Emoji picker
+document.querySelectorAll('.emoji-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+        gameState.avatar.emoji = btn.dataset.emoji;
+        renderAvatar();
+    });
+});
+
+btnPlay.addEventListener('click', () => {
+    const name = inputName.value.trim();
+    if (!name) return alert("Please enter a name!");
+
+    gameState.name = name;
+    localStorage.setItem('classgame_name', name);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room') || 'public-room';
+
+    joinGame(roomId);
+});
+
+btnCreateRoom.addEventListener('click', () => {
+    const name = inputName.value.trim();
+    if (!name) return alert("Please enter a name!");
+
+    gameState.name = name;
+    localStorage.setItem('classgame_name', name);
+
+    createGame();
+});
+
+btnCopyLink.addEventListener('click', () => {
+    const link = lobbyInviteLink.textContent;
+    navigator.clipboard.writeText(link).then(() => {
+        btnCopyLink.textContent = 'Copied!';
+        setTimeout(() => {
+            btnCopyLink.textContent = 'Copy';
+        }, 2000);
+    });
+});
+
+lobbyChatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChat(lobbyChatInput.value, 'lobby');
+});
+gameChatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChat(gameChatInput.value, 'game');
+});
+
+[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly].forEach(input => {
+    input.addEventListener('change', () => {
+        if (!gameState.isHost) return;
+        updateSettings();
+    });
+});
+
+btnStartGame.addEventListener('click', () => {
+    socket.emit('start-game', { roomId: gameState.roomId });
+});
+
+// Drawing Tools
+document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+        document.querySelector('.color-swatch.active')?.classList.remove('active');
+        swatch.classList.add('active');
+        currentColor = swatch.dataset.color;
+
+        // If eraser was active, switch back to pencil
+        if (currentTool === 'eraser') {
+            setActiveTool('pencil');
+        }
+    });
+});
+
+function setActiveTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`tool-${tool}`)?.classList.add('active');
+}
+
+document.getElementById('tool-pencil').addEventListener('click', () => setActiveTool('pencil'));
+document.getElementById('tool-eraser').addEventListener('click', () => setActiveTool('eraser'));
+document.getElementById('tool-fill').addEventListener('click', () => setActiveTool('fill'));
+document.getElementById('tool-clear').addEventListener('click', () => {
+    clearCanvas();
+    socket.emit('draw-action', { roomId: gameState.roomId, type: 'clear' });
+});
+
+document.querySelectorAll('.brush-size').forEach(sizeBtn => {
+    sizeBtn.addEventListener('click', () => {
+        document.querySelector('.brush-size.active')?.classList.remove('active');
+        sizeBtn.classList.add('active');
+        currentSize = parseInt(sizeBtn.dataset.size);
+    });
+});
+
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('mouseout', stopDrawing);
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+canvas.addEventListener('touchend', stopDrawing);
+
+// --- SOCKET ACTIONS ---
+
+function createGame() {
+    const roomId = 'room-' + Math.random().toString(36).substr(2, 6);
+    socket.emit('create-game', {
+        roomId,
+        userName: gameState.name,
+        avatar: gameState.avatar
+    }, (response) => {
+        if (response.success) {
+            gameState.isHost = true;
+            gameState.roomId = roomId;
+            enterLobby();
+        } else {
+            alert(response.message);
+        }
+    });
+}
+
+function joinGame(roomId) {
+    socket.emit('join-game', {
+        roomId,
+        userName: gameState.name,
+        avatar: gameState.avatar
+    }, (response) => {
+        if (response.success) {
+            gameState.isHost = response.isHost;
+            gameState.roomId = roomId;
+            gameState.settings = response.settings;
+            enterLobby();
+        } else {
+            alert(response.message);
+        }
+    });
+}
+
+function enterLobby() {
+    showScreen('lobby');
+    updateLobbyUI();
+
+    // Get server info first to construct proper invite link
+    socket.emit('get-server-info', {}, (info) => {
+        serverIpSpan.textContent = info.ip + ':' + info.port;
+
+        // Use server IP for invite link instead of localhost
+        const inviteUrl = `http://${info.ip}:${info.port}/?room=${gameState.roomId}`;
+        lobbyInviteLink.textContent = inviteUrl;
+    });
+
+    if (gameState.isHost) {
+        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly].forEach(el => el.disabled = false);
+        btnStartGame.classList.remove('hidden');
+    }
+}
+
+function updateLobbyUI() {
+    renderPlayerList();
+}
+
+function updateSettings() {
+    const settings = {
+        rounds: parseInt(settingRounds.value),
+        drawTime: parseInt(settingDrawTime.value),
+        wordCount: parseInt(settingWordCount.value),
+        customWords: settingCustomWords.value,
+        myWordsOnly: settingMyWordsOnly.checked
+    };
+    socket.emit('update-settings', { roomId: gameState.roomId, settings });
+}
+
+function sendChat(message, context) {
+    if (!message.trim()) return;
+    socket.emit('send-chat', { roomId: gameState.roomId, message });
+    if (context === 'lobby') lobbyChatInput.value = '';
+    if (context === 'game') gameChatInput.value = '';
+}
+
+// --- SOCKET LISTENERS ---
+
+socket.on('player-update', (players) => {
+    gameState.players = players;
+    renderPlayerList();
+});
+
+socket.on('settings-update', (settings) => {
+    gameState.settings = settings;
+    settingRounds.value = settings.rounds;
+    settingDrawTime.value = settings.drawTime;
+    settingWordCount.value = settings.wordCount;
+    settingCustomWords.value = settings.customWords;
+    settingMyWordsOnly.checked = settings.myWordsOnly || false;
+});
+
+socket.on('chat-message', (msg) => {
+    const div = document.createElement('div');
+    div.className = 'chat-message';
+    if (msg.system) div.classList.add('system');
+    if (msg.isCorrect) div.classList.add('correct-guess');
+
+    div.innerHTML = msg.system ? msg.content : `<b>${escapeHtml(msg.sender)}:</b> ${escapeHtml(msg.content)}`;
+
+    if (gameState.screen === 'lobby') {
+        lobbyChatMessages.appendChild(div);
+        lobbyChatMessages.scrollTop = lobbyChatMessages.scrollHeight;
+    } else {
+        gameChatMessages.appendChild(div);
+        gameChatMessages.scrollTop = gameChatMessages.scrollHeight;
+    }
+});
+
+socket.on('game-started', () => {
+    showScreen('game');
+});
+
+socket.on('timer-update', (time) => {
+    document.getElementById('timer').textContent = time;
+});
+
+socket.on('turn-update', (data) => {
+    document.getElementById('current-round').textContent = data.round;
+    document.getElementById('total-rounds').textContent = data.totalRounds;
+
+    gameState.drawerId = data.drawerId;
+    renderPlayerList();
+
+    const isMe = data.drawerId === socket.id;
+    const toolbar = document.querySelector('.toolbar');
+
+    // Hide/show toolbar based on whether user is drawing
+    if (isMe) {
+        if (toolbar) toolbar.style.display = 'flex';
+        document.getElementById('overlay-message').textContent = "Choose a word!";
+        document.getElementById('canvas-overlay').classList.remove('hidden');
+    } else {
+        if (toolbar) toolbar.style.display = 'none';
+        const drawer = gameState.players.find(p => p.id === data.drawerId);
+        document.getElementById('overlay-message').textContent = `${drawer ? drawer.name : 'Someone'} is choosing a word...`;
+        document.getElementById('canvas-overlay').classList.remove('hidden');
+    }
+});
+
+socket.on('word-selection', (words) => {
+    const overlay = document.getElementById('canvas-overlay');
+    overlay.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <h2 style="color: white; margin: 0;">Choose a word</h2>
+            <div class="word-choices">
+                ${words.map(w => `<button class="btn-word">${w}</button>`).join('')}
+            </div>
+        </div>
+    `;
+    overlay.classList.remove('hidden');
+
+    overlay.querySelectorAll('.btn-word').forEach(btn => {
+        btn.addEventListener('click', () => {
+            socket.emit('select-word', { roomId: gameState.roomId, word: btn.textContent });
+            overlay.classList.add('hidden');
+        });
+    });
+});
+
+socket.on('drawing-phase-start', (data) => {
+    document.getElementById('canvas-overlay').classList.add('hidden');
+    clearCanvas();
+
+    // Show dashes
+    const dashes = new Array(data.wordLength).fill('_').join(' ');
+    document.getElementById('word-display').textContent = dashes;
+});
+
+socket.on('your-word', (word) => {
+    document.getElementById('word-display').textContent = word;
+});
+
+socket.on('turn-end', (data) => {
+    document.getElementById('overlay-message').textContent = `The word was: ${data.word}`;
+    document.getElementById('canvas-overlay').classList.remove('hidden');
+});
+
+socket.on('game-ended', (data) => {
+    alert("Game Over!");
+    showScreen('lobby');
+});
+
+socket.on('draw-line', (data) => {
+    drawLine(data.from.x, data.from.y, data.to.x, data.to.y, data.color, data.size);
+});
+
+socket.on('draw-action', (data) => {
+    if (data.type === 'clear') clearCanvas();
+    if (data.type === 'fill') fillCanvas(data.color);
+});
+
+// --- RENDER HELPERS ---
+
+function renderPlayerList() {
+    const list = gameState.screen === 'lobby' ? lobbyPlayerList : gamePlayerList;
+    lobbyPlayerCount.textContent = gameState.players.length;
+
+    list.innerHTML = '';
+    gameState.players.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'player-item';
+        if (p.id === socket.id) div.classList.add('is-me');
+        if (p.hasGuessed) div.classList.add('has-guessed');
+
+        const isDrawer = gameState.drawerId === p.id;
+
+        div.innerHTML = `
+            <div class="player-avatar-small">${p.avatar.emoji || '😀'}</div>
+            <div class="player-info">
+                <span class="player-name">
+                    ${escapeHtml(p.name)} 
+                    ${p.isHost ? '👑' : ''}
+                    ${isDrawer ? '✏️' : ''}
+                </span>
+                <span class="player-score">Points: ${p.score || 0}</span>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return text;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+init();

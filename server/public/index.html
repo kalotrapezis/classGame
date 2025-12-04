@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="/game-logo.jpg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassGame</title>
+  <script type="module" crossorigin src="/assets/index-36shNf8Y.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-MpvNOOO4.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- SCREEN: LANDING -->
+    <div id="screen-landing" class="screen">
+      <div class="landing-container">
+        <img src="/game-logo.jpg" alt="ClassGame Logo" class="game-logo-img">
+
+        <div class="login-panel">
+          <div class="avatar-preview-container">
+            <div id="avatar-preview" class="avatar-emoji">😀</div>
+            <button id="btn-random-avatar" class="btn-icon" title="Randomize Avatar">🎲</button>
+          </div>
+
+          <div class="emoji-picker">
+            <button class="emoji-option" data-emoji="😀">😀</button>
+            <button class="emoji-option" data-emoji="😎">😎</button>
+            <button class="emoji-option" data-emoji="🤓">🤓</button>
+            <button class="emoji-option" data-emoji="😊">😊</button>
+            <button class="emoji-option" data-emoji="🥳">🥳</button>
+            <button class="emoji-option" data-emoji="🤩">🤩</button>
+            <button class="emoji-option" data-emoji="😇">😇</button>
+            <button class="emoji-option" data-emoji="🤠">🤠</button>
+            <button class="emoji-option" data-emoji="🥸">🥸</button>
+            <button class="emoji-option" data-emoji="🤡">🤡</button>
+            <button class="emoji-option" data-emoji="👻">👻</button>
+            <button class="emoji-option" data-emoji="👽">👽</button>
+            <button class="emoji-option" data-emoji="🤖">🤖</button>
+            <button class="emoji-option" data-emoji="🐶">🐶</button>
+            <button class="emoji-option" data-emoji="🐱">🐱</button>
+            <button class="emoji-option" data-emoji="🐼">🐼</button>
+          </div>
+
+          <input type="text" id="input-name" placeholder="Enter your name" maxlength="12">
+
+          <button id="btn-play" class="btn-green btn-large">Play!</button>
+          <button id="btn-create-room" class="btn-blue">Create Private Room</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: LOBBY -->
+    <div id="screen-lobby" class="screen hidden">
+      <div class="lobby-container">
+        <!-- Header -->
+        <div class="lobby-header">
+          <div class="server-info">
+            <span>Server: </span><span id="server-ip">Loading...</span>
+          </div>
+          <div class="invite-link">
+            <span>Invite: </span><span id="lobby-invite-link">http://...</span>
+            <button id="btn-copy-invite" class="btn-small">Copy</button>
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="lobby-content">
+          <!-- Left: Players -->
+          <div class="panel lobby-players">
+            <div class="panel-header">Players (<span id="lobby-player-count">0</span>)</div>
+            <div id="lobby-player-list" class="player-list">
+              <!-- Player items go here -->
+            </div>
+          </div>
+
+          <!-- Center: Settings -->
+          <div class="panel lobby-settings">
+            <div class="panel-header">Settings</div>
+            <div class="settings-form">
+              <div class="form-group">
+                <label>Rounds</label>
+                <select id="setting-rounds" disabled>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Draw Time (s)</label>
+                <select id="setting-draw-time" disabled>
+                  <option value="60">60</option>
+                  <option value="80" selected>80</option>
+                  <option value="100">100</option>
+                  <option value="120">120</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Word Count</label>
+                <select id="setting-word-count" disabled>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Custom Words (comma-separated)</label>
+                <textarea id="setting-custom-words" rows="3" placeholder="dog, cat, tree..." disabled></textarea>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="setting-my-words-only" disabled>
+                  My Words Only
+                </label>
+              </div>
+
+              <button id="btn-start-game" class="btn-green btn-large hidden">Start Game</button>
+            </div>
+          </div>
+
+          <!-- Right: Chat -->
+          <div class="panel lobby-chat">
+            <div class="panel-header">Chat</div>
+            <div id="lobby-chat-messages" class="chat-messages"></div>
+            <div class="chat-input-area">
+              <input type="text" id="lobby-chat-input" placeholder="Type here...">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: GAME -->
+    <div id="screen-game" class="screen hidden">
+      <!-- Game Header -->
+      <div class="game-header">
+        <div class="timer-container">
+          <div id="timer">0</div>
+        </div>
+        <div class="round-info">Round <span id="current-round">1</span> of <span id="total-rounds">3</span></div>
+        <div class="word-container">
+          <div id="word-display">_ _ _ _ _</div>
+        </div>
+        <div class="header-spacer"></div>
+      </div>
+
+      <!-- Game Content -->
+      <div class="game-content">
+        <!-- Left: Players -->
+        <div class="panel game-players">
+          <div id="game-player-list" class="player-list">
+            <!-- Game player items -->
+          </div>
+        </div>
+
+        <!-- Center: Canvas -->
+        <div class="panel game-canvas-container">
+          <canvas id="drawing-canvas"></canvas>
+          <div id="canvas-overlay" class="hidden">
+            <div id="overlay-text">Waiting for round to start...</div>
+            <div id="word-selection" class="hidden">
+              <div>Choose a word:</div>
+              <div class="word-choices">
+                <!-- Word buttons will be inserted here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <div class="colors" id="color-palette">
+              <!-- Color swatches will be inserted by JS -->
+            </div>
+
+            <div class="tools-group">
+              <button id="tool-pencil" class="tool-btn active" title="Pencil">✏️</button>
+              <button id="tool-eraser" class="tool-btn" title="Eraser">🧼</button>
+              <button id="tool-fill" class="tool-btn" title="Fill">🪣</button>
+              <button id="tool-clear" class="tool-btn" title="Clear All">🗑️</button>
+            </div>
+
+            <div class="brush-sizes">
+              <div class="brush-size small active" data-size="4"></div>
+              <div class="brush-size medium" data-size="10"></div>
+              <div class="brush-size large" data-size="20"></div>
+              <div class="brush-size xlarge" data-size="35"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Chat -->
+        <div class="panel game-chat">
+          <div class="panel-header">Chat</div>
+          <div id="game-chat-messages" class="chat-messages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="game-chat-input" placeholder="Type your guess here...">
+          </div>
+        </div>
+      </div>
+
+      <div class="game-footer">
+        <button id="btn-votekick" class="btn-orange">Votekick</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>
