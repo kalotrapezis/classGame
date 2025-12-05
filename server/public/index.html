@@ -6,8 +6,8 @@
   <link rel="icon" type="image/jpeg" href="/game-logo.jpg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassGame</title>
-  <script type="module" crossorigin src="/assets/index-BrkgxOiV.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-MpvNOOO4.css">
+  <script type="module" crossorigin src="/assets/index-I0yXc5mv.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Oc3esUAE.css">
 </head>
 
 <body>
@@ -117,6 +117,15 @@
                   My Words Only
                 </label>
               </div>
+              <div class="form-group">
+                <label>Hints</label>
+                <select id="setting-hints" disabled>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
 
               <button id="btn-start-game" class="btn-green btn-large hidden">Start Game</button>
             </div>
@@ -208,6 +217,41 @@
     </div>
   </div>
 
+
+  <!-- SCREEN: GAME OVER -->
+  <div id="screen-gameover" class="screen hidden">
+    <div class="gameover-container">
+      <h1 class="gameover-title">🎮 Game Over! 🎮</h1>
+
+      <div class="podium">
+        <div class="podium-place second">
+          <div class="podium-avatar" id="winner-2-avatar">😀</div>
+          <div class="podium-medal">🥈</div>
+          <div class="podium-name" id="winner-2-name">-</div>
+          <div class="podium-score" id="winner-2-score">0 pts</div>
+          <div class="podium-stand second-stand">2</div>
+        </div>
+
+        <div class="podium-place first">
+          <div class="podium-avatar" id="winner-1-avatar">😀</div>
+          <div class="podium-medal">🏅</div>
+          <div class="podium-name" id="winner-1-name">-</div>
+          <div class="podium-score" id="winner-1-score">0 pts</div>
+          <div class="podium-stand first-stand">1</div>
+        </div>
+
+        <div class="podium-place third">
+          <div class="podium-avatar" id="winner-3-avatar">😀</div>
+          <div class="podium-medal">🥉</div>
+          <div class="podium-name" id="winner-3-name">-</div>
+          <div class="podium-score" id="winner-3-score">0 pts</div>
+          <div class="podium-stand third-stand">3</div>
+        </div>
+      </div>
+
+      <button id="btn-play-again" class="btn-green btn-large">Play Again</button>
+    </div>
+  </div>
 </body>
 
 </html>

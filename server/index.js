@@ -122,6 +122,7 @@ io.on('connection', (socket) => {
         rounds: 3,
         drawTime: 80,
         wordCount: 3,
+        hints: 2,
         customWords: '',
         myWordsOnly: false
       },
@@ -132,7 +133,9 @@ io.on('connection', (socket) => {
         currentWord: null,
         timer: 0,
         interval: null,
-        wordOptions: []
+        wordOptions: [],
+        revealedIndices: [],
+        hintTimeouts: []
       }
     };
 
@@ -150,9 +153,9 @@ io.on('connection', (socket) => {
         id: roomId,
         hostId: socket.id, // First joiner becomes host
         status: 'lobby',
-        settings: { rounds: 3, drawTime: 80, wordCount: 3, customWords: '' },
+        settings: { rounds: 3, drawTime: 80, wordCount: 3, hints: 2, customWords: '' },
         players: [],
-        game: { currentRound: 0, currentDrawerIndex: -1, currentWord: null, timer: 0, interval: null, wordOptions: [] }
+        game: { currentRound: 0, currentDrawerIndex: -1, currentWord: null, timer: 0, interval: null, wordOptions: [], revealedIndices: [], hintTimeouts: [] }
       };
       rooms.set(roomId, room);
     } else if (!room) {
@@ -398,6 +401,13 @@ function startTurn(room) {
 function startDrawingPhase(room, word) {
   room.status = 'drawing';
   room.game.currentWord = word;
+  room.game.revealedIndices = [];
+
+  // Clear any previous hint timeouts
+  if (room.game.hintTimeouts) {
+    room.game.hintTimeouts.forEach(t => clearTimeout(t));
+  }
+  room.game.hintTimeouts = [];
 
   // Notify everyone
   io.to(room.id).emit('drawing-phase-start', {
@@ -409,12 +419,70 @@ function startDrawingPhase(room, word) {
   const drawer = room.players[room.game.currentDrawerIndex];
   io.to(drawer.id).emit('your-word', word);
 
+  // Schedule hints at evenly distributed times
+  const numHints = room.settings.hints || 2;
+  const drawTime = room.settings.drawTime;
+
+  for (let i = 1; i <= numHints; i++) {
+    // Reveal hints at evenly spaced intervals (excluding first and last 5 seconds)
+    const hintTime = Math.floor((drawTime - 5) * (i / (numHints + 1))) * 1000;
+    const timeout = setTimeout(() => {
+      revealHint(room);
+    }, hintTime);
+    room.game.hintTimeouts.push(timeout);
+  }
+
   startTimer(room, room.settings.drawTime, () => {
     endTurn(room);
   });
 }
 
+function revealHint(room) {
+  const word = room.game.currentWord;
+  if (!word) return;
+
+  // Find indices of letters that haven't been revealed yet (skip spaces)
+  const availableIndices = [];
+  for (let i = 0; i < word.length; i++) {
+    if (word[i] !== ' ' && !room.game.revealedIndices.includes(i)) {
+      availableIndices.push(i);
+    }
+  }
+
+  if (availableIndices.length === 0) return;
+
+  // Pick random index to reveal
+  const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+  room.game.revealedIndices.push(randomIndex);
+
+  // Build the hint string (underscores with revealed letters)
+  let hintDisplay = '';
+  for (let i = 0; i < word.length; i++) {
+    if (word[i] === ' ') {
+      hintDisplay += '  '; // Double space for word separator
+    } else if (room.game.revealedIndices.includes(i)) {
+      hintDisplay += word[i].toUpperCase() + ' ';
+    } else {
+      hintDisplay += '_ ';
+    }
+  }
+
+  // Send hint update to everyone except the drawer
+  const drawer = room.players[room.game.currentDrawerIndex];
+  room.players.forEach(p => {
+    if (p.id !== drawer.id) {
+      io.to(p.id).emit('hint-update', hintDisplay.trim());
+    }
+  });
+}
+
 function endTurn(room) {
+  // Clear hint timeouts
+  if (room.game.hintTimeouts) {
+    room.game.hintTimeouts.forEach(t => clearTimeout(t));
+    room.game.hintTimeouts = [];
+  }
+
   // Reveal word
   io.to(room.id).emit('turn-end', { word: room.game.currentWord });
 

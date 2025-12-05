@@ -31,8 +31,7 @@ let gameState = {
 const screens = {
     landing: document.getElementById('screen-landing'),
     lobby: document.getElementById('screen-lobby'),
-    game: document.getElementById('screen-game'),
-    gameover: document.getElementById('screen-gameover')
+    game: document.getElementById('screen-game')
 };
 
 // Landing
@@ -608,30 +607,7 @@ socket.on('turn-end', (data) => {
 });
 
 socket.on('game-ended', (data) => {
-    // Sort players by score
-    const sorted = [...data.players].sort((a, b) => b.score - a.score);
-
-    // Update podium with top 3
-    for (let i = 0; i < 3; i++) {
-        const player = sorted[i];
-        const place = i + 1;
-
-        if (player) {
-            document.getElementById(`winner-${place}-avatar`).textContent = player.avatar?.emoji || '😀';
-            document.getElementById(`winner-${place}-name`).textContent = player.name;
-            document.getElementById(`winner-${place}-score`).textContent = `${player.score} pts`;
-        } else {
-            document.getElementById(`winner-${place}-avatar`).textContent = '❓';
-            document.getElementById(`winner-${place}-name`).textContent = '-';
-            document.getElementById(`winner-${place}-score`).textContent = '0 pts';
-        }
-    }
-
-    showScreen('gameover');
-});
-
-// Play Again button
-document.getElementById('btn-play-again').addEventListener('click', () => {
+    alert("Game Over!");
     showScreen('lobby');
 });
 

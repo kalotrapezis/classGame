@@ -22,7 +22,6 @@ let gameState = {
         rounds: 3,
         drawTime: 80,
         wordCount: 3,
-        hints: 2,
         customWords: ''
     }
 };
@@ -31,8 +30,7 @@ let gameState = {
 const screens = {
     landing: document.getElementById('screen-landing'),
     lobby: document.getElementById('screen-lobby'),
-    game: document.getElementById('screen-game'),
-    gameover: document.getElementById('screen-gameover')
+    game: document.getElementById('screen-game')
 };
 
 // Landing
@@ -58,7 +56,6 @@ const settingDrawTime = document.getElementById('setting-draw-time');
 const settingWordCount = document.getElementById('setting-word-count');
 const settingCustomWords = document.getElementById('setting-custom-words');
 const settingMyWordsOnly = document.getElementById('setting-my-words-only');
-const settingHints = document.getElementById('setting-hints');
 
 // Game
 const gamePlayerList = document.getElementById('game-player-list');
@@ -76,10 +73,10 @@ function init() {
     renderAvatar();
     initializeColorPalette();
 
-    // Check for room ID in URL (short format: /?123)
+    // Check for room ID in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const roomFromUrl = [...urlParams.keys()][0];
-    if (roomFromUrl && roomFromUrl !== 'public') {
+    const roomFromUrl = urlParams.get('room');
+    if (roomFromUrl) {
         btnPlay.textContent = "Join Room";
     }
 }
@@ -301,7 +298,7 @@ function resizeCanvas() {
     const container = document.querySelector('.game-canvas-container');
     if (container) {
         canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight - 60; // 10px shorter than before
+        canvas.height = container.clientHeight - 50;
     }
 }
 window.addEventListener('resize', resizeCanvas);
@@ -359,7 +356,7 @@ gameChatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendChat(gameChatInput.value, 'game');
 });
 
-[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(input => {
+[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly].forEach(input => {
     input.addEventListener('change', () => {
         if (!gameState.isHost) return;
         updateSettings();
@@ -459,13 +456,13 @@ function enterLobby() {
     socket.emit('get-server-info', {}, (info) => {
         serverIpSpan.textContent = info.ip + ':' + info.port;
 
-        // Use server IP for invite link - numeric room ID only
+        // Use server IP for invite link instead of localhost
         const inviteUrl = `http://${info.ip}:${info.port}/?${gameState.roomId}`;
         lobbyInviteLink.textContent = inviteUrl;
     });
 
     if (gameState.isHost) {
-        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(el => el.disabled = false);
+        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly].forEach(el => el.disabled = false);
         btnStartGame.classList.remove('hidden');
     }
 }
@@ -479,7 +476,6 @@ function updateSettings() {
         rounds: parseInt(settingRounds.value),
         drawTime: parseInt(settingDrawTime.value),
         wordCount: parseInt(settingWordCount.value),
-        hints: parseInt(settingHints.value),
         customWords: settingCustomWords.value,
         myWordsOnly: settingMyWordsOnly.checked
     };
@@ -505,13 +501,8 @@ socket.on('settings-update', (settings) => {
     settingRounds.value = settings.rounds;
     settingDrawTime.value = settings.drawTime;
     settingWordCount.value = settings.wordCount;
-    settingHints.value = settings.hints || 2;
     settingCustomWords.value = settings.customWords;
     settingMyWordsOnly.checked = settings.myWordsOnly || false;
-});
-
-socket.on('hint-update', (hintDisplay) => {
-    document.getElementById('word-display').textContent = hintDisplay;
 });
 
 socket.on('chat-message', (msg) => {
@@ -608,30 +599,7 @@ socket.on('turn-end', (data) => {
 });
 
 socket.on('game-ended', (data) => {
-    // Sort players by score
-    const sorted = [...data.players].sort((a, b) => b.score - a.score);
-
-    // Update podium with top 3
-    for (let i = 0; i < 3; i++) {
-        const player = sorted[i];
-        const place = i + 1;
-
-        if (player) {
-            document.getElementById(`winner-${place}-avatar`).textContent = player.avatar?.emoji || '😀';
-            document.getElementById(`winner-${place}-name`).textContent = player.name;
-            document.getElementById(`winner-${place}-score`).textContent = `${player.score} pts`;
-        } else {
-            document.getElementById(`winner-${place}-avatar`).textContent = '❓';
-            document.getElementById(`winner-${place}-name`).textContent = '-';
-            document.getElementById(`winner-${place}-score`).textContent = '0 pts';
-        }
-    }
-
-    showScreen('gameover');
-});
-
-// Play Again button
-document.getElementById('btn-play-again').addEventListener('click', () => {
+    alert("Game Over!");
     showScreen('lobby');
 });
 

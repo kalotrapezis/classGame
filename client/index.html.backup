@@ -116,15 +116,6 @@
                   My Words Only
                 </label>
               </div>
-              <div class="form-group">
-                <label>Hints</label>
-                <select id="setting-hints" disabled>
-                  <option value="2" selected>2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                </select>
-              </div>
 
               <button id="btn-start-game" class="btn-green btn-large hidden">Start Game</button>
             </div>
@@ -143,115 +134,81 @@
     </div>
 
     <!-- SCREEN: GAME -->
-    <div id="screen-game" class="screen hidden">
-      <!-- Game Header -->
-      <div class="game-header">
+<div id="screen-game" class="screen hidden">
+    <!-- Game Header -->
+    <div class="game-header">
         <div class="timer-container">
-          <div id="timer">0</div>
+            <div id="timer">0</div>
         </div>
         <div class="round-info">Round <span id="current-round">1</span> of <span id="total-rounds">3</span></div>
         <div class="word-container">
-          <div id="word-display">_ _ _ _ _</div>
+            <div id="word-display">_ _ _ _ _</div>
         </div>
-        <div class="header-spacer"></div>
-      </div>
-
-      <!-- Game Content -->
-      <div class="game-content">
-        <!-- Left: Players -->
-        <div class="panel game-players">
-          <div id="game-player-list" class="player-list">
-            <!-- Game player items -->
-          </div>
-        </div>
-
-        <!-- Center: Canvas -->
-        <div class="panel game-canvas-container">
-          <canvas id="drawing-canvas"></canvas>
-          <div id="canvas-overlay" class="hidden">
-            <div id="overlay-text">Waiting for round to start...</div>
-            <div id="word-selection" class="hidden">
-              <div>Choose a word:</div>
-              <div class="word-choices">
-                <!-- Word buttons will be inserted here -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Toolbar -->
-          <div class="toolbar">
-            <div class="colors" id="color-palette">
-              <!-- Color swatches will be inserted by JS -->
-            </div>
-
-            <div class="tools-group">
-              <button id="tool-pencil" class="tool-btn active" title="Pencil">✏️</button>
-              <button id="tool-eraser" class="tool-btn" title="Eraser">🧼</button>
-              <button id="tool-fill" class="tool-btn" title="Fill">🪣</button>
-              <button id="tool-clear" class="tool-btn" title="Clear All">🗑️</button>
-            </div>
-
-            <div class="brush-sizes">
-              <div class="brush-size small active" data-size="4"></div>
-              <div class="brush-size medium" data-size="10"></div>
-              <div class="brush-size large" data-size="20"></div>
-              <div class="brush-size xlarge" data-size="35"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Chat -->
-        <div class="panel game-chat">
-          <div class="panel-header">Chat</div>
-          <div id="game-chat-messages" class="chat-messages"></div>
-          <div class="chat-input-area">
-            <input type="text" id="game-chat-input" placeholder="Type your guess here...">
-          </div>
-        </div>
-      </div>
-
-      <div class="game-footer">
-        <button id="btn-votekick" class="btn-orange">Votekick</button>
-      </div>
     </div>
+
+    <!-- Game Main Content -->
+    <div class="game-main">
+        <!-- Canvas Area (Primary) -->
+        <div class="game-canvas-area">
+            <div class="panel game-canvas-container">
+                <canvas id="drawing-canvas"></canvas>
+                <div id="canvas-overlay" class="hidden">
+                    <div id="overlay-message">Waiting for round to start...</div>
+                </div>
+
+                <!-- Drawing Toolbar -->
+                <div class="toolbar">
+                    <div class="toolbar-scroll">
+                        <div class="colors" id="color-palette">
+                            <!-- Color swatches will be inserted by JS -->
+                        </div>
+
+                        <div class="tools-group">
+                            <button id="tool-pencil" class="tool-btn active" title="Pencil">✏️</button>
+                            <button id="tool-eraser" class="tool-btn" title="Eraser">🧼</button>
+                            <button id="tool-fill" class="tool-btn" title="Fill">🪣</button>
+                            <button id="tool-clear" class="tool-btn" title="Clear All">🗑️</button>
+                        </div>
+
+                        <div class="brush-sizes">
+                            <div class="brush-size small active" data-size="4"></div>
+                            <div class="brush-size medium" data-size="10"></div>
+                            <div class="brush-size large" data-size="20"></div>
+                            <div class="brush-size xlarge" data-size="35"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: Chat + Players -->
+        <div class="game-sidebar">
+            <!-- Chat (Priority 2) -->
+            <div class="panel game-chat">
+                <div class="panel-header">Chat</div>
+                <div id="game-chat-messages" class="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="game-chat-input" placeholder="Type your guess here...">
+                </div>
+            </div>
+
+            <!-- Players (Priority 3) -->
+            <div class="panel game-players">
+                <div class="panel-header">Players</div>
+                <div id="game-player-list" class="player-list">
+                    <!-- Game player items -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-footer">
+        <button id="btn-votekick" class="btn-orange">Votekick</button>
+    </div>
+</div></div>
   </div>
 
   <script type="module" src="/main.js"></script>
-
-  <!-- SCREEN: GAME OVER -->
-  <div id="screen-gameover" class="screen hidden">
-    <div class="gameover-container">
-      <h1 class="gameover-title">🎮 Game Over! 🎮</h1>
-
-      <div class="podium">
-        <div class="podium-place second">
-          <div class="podium-avatar" id="winner-2-avatar">😀</div>
-          <div class="podium-medal">🥈</div>
-          <div class="podium-name" id="winner-2-name">-</div>
-          <div class="podium-score" id="winner-2-score">0 pts</div>
-          <div class="podium-stand second-stand">2</div>
-        </div>
-
-        <div class="podium-place first">
-          <div class="podium-avatar" id="winner-1-avatar">😀</div>
-          <div class="podium-medal">🏅</div>
-          <div class="podium-name" id="winner-1-name">-</div>
-          <div class="podium-score" id="winner-1-score">0 pts</div>
-          <div class="podium-stand first-stand">1</div>
-        </div>
-
-        <div class="podium-place third">
-          <div class="podium-avatar" id="winner-3-avatar">😀</div>
-          <div class="podium-medal">🥉</div>
-          <div class="podium-name" id="winner-3-name">-</div>
-          <div class="podium-score" id="winner-3-score">0 pts</div>
-          <div class="podium-stand third-stand">3</div>
-        </div>
-      </div>
-
-      <button id="btn-play-again" class="btn-green btn-large">Play Again</button>
-    </div>
-  </div>
 </body>
 
 </html>

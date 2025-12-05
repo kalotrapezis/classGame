@@ -1,5 +1,21 @@
 # ClassGame - Release Notes
 
+## v0.2.0 (2025-12-05)
+
+### New Features
+- **Hint System**: Random letters are now revealed automatically during the drawing phase to help guessers.
+- **Game Over Podium**: A new game-over screen celebrates the top 3 winners with a podium display, avatars, and medals! 🏅🥈🥉
+- **Hints Setting**: Hosts can now configure the number of hints (2-5) in the lobby settings.
+
+### Improvements
+- **URL Format**: Updated room invite URLs to use a shorter, cleaner format (e.g., `/?123`).
+- **Layout**: Optimized the game layout for better usability on both PC and tablets.
+  - Canvas height adjusted to ensure toolbar visibility.
+  - Player list and chat panels now match the canvas height and have scrollbars.
+  - Page is now scrollable if content exceeds the viewport.
+
+---
+
 ## v0.1.1-alpha (2025-12-04)
 
 ### Bug Fixes

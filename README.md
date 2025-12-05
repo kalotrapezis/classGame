@@ -1,4 +1,4 @@
-# ClassGame (v0.1.1-alpha)
+# ClassGame (v0.2.0)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 
@@ -7,9 +7,11 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 - 🎨 **Real-time Drawing** - Smooth drawing canvas with multiple tools (pencil, eraser, fill, clear)
 - 🎮 **Multiplayer Fun** - Play with friends on your local network
 - 🏆 **Scoring System** - Points based on how quickly you guess (2000 max, 100 min)
+- 💡 **Hint System** - Random letters reveal automatically during the game to help guessers
+- 🥇 **Game Over Podium** - Celebrate the top 3 winners with a fun podium display
 - 😀 **Emoji Avatars** - Choose from 16 fun emoji avatars
 - 🎯 **Custom Words** - Add your own words (supports any language, including Greek!)
-- ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), and word count (3-8)
+- ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), word count (3-8), and hints (2-5)
 - 📋 **Easy Sharing** - Copy invite link with one click
 
 ## Quick Start
@@ -65,6 +67,7 @@ npm start
 - **Rounds**: 2-5 rounds
 - **Draw Time**: 60-120 seconds per turn
 - **Word Count**: 3-8 word choices
+- **Hints**: 2-5 hints per turn
 - **Custom Words**: Add your own words (comma-separated)
 - **My Words Only**: Use only your custom words instead of defaults
 
@@ -100,3 +103,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 Created by Teo Kalotrapezis
 
 Inspired by [Skribbl.io](https://skribbl.io)
+
+---
+
+> [!NOTE]
+> This is an AI vibecoded app and the Opus 4.5 is pretty great! 🤖✨
