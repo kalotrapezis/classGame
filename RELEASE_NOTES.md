@@ -1,5 +1,34 @@
 # ClassGame - Release Notes
 
+## v0.3.0 (2025-12-08)
+
+### Major Changes
+- **Single Room Per Server**: Simplified architecture - no more room codes! Students just visit `192.168.x.x:3000` directly
+- **Removed "Create Private Room"**: Now everyone joins the same room automatically
+
+### Stability Improvements
+- **Crash Prevention**: Added global exception handlers to keep server running
+- **Connection Rate Limiting**: Prevents rapid reconnection spam from overwhelming server
+- **Memory Management**: Canvas actions capped at 2000 to prevent memory leaks
+- **Room Cleanup**: Proper timer/interval cleanup when games end or all players leave
+- **MAX_PLAYERS Limit**: Room capped at 20 players to prevent overload
+
+### New Features
+- **Score Persistence on Reconnect**: If a player disconnects and rejoins with the same name, their score is restored!
+- **Late Joiner Support**: Players joining mid-game are synced directly into the game (see current drawing, timer, round)
+- **Canvas Resize Preservation**: Drawing actions are replayed on window resize instead of scaling (no more blur!)
+
+### Bug Fixes
+- **Fixed Fill Tool**: Flood fill now checks all color components (RGBA) instead of just red - no more color bleeding
+- **Fixed Zombie Rooms**: Old rooms no longer persist with running timers after games end
+
+### UI Improvements
+- **Responsive Toolbar**: Drawing tools wrap on narrow screens instead of being cut off
+- **Better Breakpoints**: Added responsive layouts for 1000px, 850px, and 600px screens
+- **Players Panel Hidden on Small Screens**: Automatically hides to give more canvas space
+
+---
+
 ## v0.2.0 (2025-12-05)
 
 ### New Features

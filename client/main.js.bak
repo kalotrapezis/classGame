@@ -9,10 +9,13 @@ console.log(`Connecting to ClassGame server at: ${serverUrl}`);
 
 // --- STATE ---
 let gameState = {
-    screen: 'landing',
+    screen: 'landing', // landing, lobby, game
     name: '',
-    avatar: { emoji: '😀' },
+    avatar: {
+        emoji: '😀'
+    },
     isHost: false,
+    roomId: null,
     players: [],
     drawerId: null,
     settings: {
@@ -35,6 +38,7 @@ const screens = {
 // Landing
 const inputName = document.getElementById('input-name');
 const btnPlay = document.getElementById('btn-play');
+const btnCreateRoom = document.getElementById('btn-create-room');
 const btnRandomAvatar = document.getElementById('btn-random-avatar');
 const avatarPreview = document.getElementById('avatar-preview');
 
@@ -48,7 +52,7 @@ const lobbyChatMessages = document.getElementById('lobby-chat-messages');
 const lobbyChatInput = document.getElementById('lobby-chat-input');
 const serverIpSpan = document.getElementById('server-ip');
 
-// Settings
+// Settings Inputs
 const settingRounds = document.getElementById('setting-rounds');
 const settingDrawTime = document.getElementById('setting-draw-time');
 const settingWordCount = document.getElementById('setting-word-count');
@@ -65,10 +69,19 @@ const ctx = canvas.getContext('2d');
 
 // --- INITIALIZATION ---
 function init() {
+    // Restore name/avatar from local storage if available
     const savedName = localStorage.getItem('classgame_name');
     if (savedName) inputName.value = savedName;
+
     renderAvatar();
     initializeColorPalette();
+
+    // Check for room ID in URL (short format: /?123)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = [...urlParams.keys()][0];
+    if (roomFromUrl && roomFromUrl !== 'public') {
+        btnPlay.textContent = "Join Room";
+    }
 }
 
 function initializeColorPalette() {
@@ -88,7 +101,9 @@ function initializeColorPalette() {
             document.querySelector('.color-swatch.active')?.classList.remove('active');
             swatch.classList.add('active');
             currentColor = color;
-            if (currentTool === 'eraser') setActiveTool('pencil');
+            if (currentTool === 'eraser') {
+                setActiveTool('pencil');
+            }
         });
         palette.appendChild(swatch);
     });
@@ -99,10 +114,13 @@ function showScreen(screenName) {
     Object.values(screens).forEach(s => s.classList.add('hidden'));
     screens[screenName].classList.remove('hidden');
     gameState.screen = screenName;
-    if (screenName === 'game') setTimeout(resizeCanvas, 100);
+
+    if (screenName === 'game') {
+        setTimeout(resizeCanvas, 100);
+    }
 }
 
-// --- AVATAR ---
+// --- AVATAR LOGIC ---
 function renderAvatar() {
     avatarPreview.textContent = gameState.avatar.emoji;
 }
@@ -113,17 +131,19 @@ function randomizeAvatar() {
     renderAvatar();
 }
 
-// --- DRAWING ---
+// --- DRAWING LOGIC ---
 let isDrawing = false;
-let lastX = 0, lastY = 0;
-let currentTool = 'brush';
+let lastX = 0;
+let lastY = 0;
+let currentTool = 'brush'; // brush, eraser, fill
 let currentColor = '#000000';
 let currentSize = 5;
-let canvasActions = []; // Store all drawing actions for replay on resize
 
 function startDrawing(e) {
     if (gameState.screen !== 'game') return;
     if (!document.getElementById('canvas-overlay').classList.contains('hidden')) return;
+
+    // CRITICAL: Only the drawer can draw
     if (gameState.drawerId !== socket.id) return;
 
     isDrawing = true;
@@ -131,9 +151,13 @@ function startDrawing(e) {
 
     if (currentTool === 'fill') {
         floodFill(lastX, lastY, currentColor);
-        const fillData = { type: 'fill', x: lastX, y: lastY, color: currentColor };
-        canvasActions.push({ type: 'action', data: fillData });
-        socket.emit('draw-action', fillData);
+        socket.emit('draw-action', {
+            roomId: gameState.roomId,
+            type: 'fill',
+            x: lastX,
+            y: lastY,
+            color: currentColor
+        });
         isDrawing = false;
     } else {
         draw(e);
@@ -141,27 +165,41 @@ function startDrawing(e) {
 }
 
 function draw(e) {
-    if (!isDrawing || gameState.drawerId !== socket.id) {
+    if (!isDrawing) return;
+
+    // Double-check drawer permission
+    if (gameState.drawerId !== socket.id) {
         isDrawing = false;
         return;
     }
 
     const [x, y] = getCoordinates(e);
+
+    // Eraser is just drawing with white (or background color)
     const color = currentTool === 'eraser' ? '#ffffff' : currentColor;
 
     drawLine(lastX, lastY, x, y, color, currentSize);
-    const lineData = { from: { x: lastX, y: lastY }, to: { x, y }, color, size: currentSize };
-    canvasActions.push({ type: 'line', data: lineData });
-    socket.emit('draw-line', lineData);
+
+    socket.emit('draw-line', {
+        roomId: gameState.roomId,
+        from: { x: lastX, y: lastY },
+        to: { x, y },
+        color: color,
+        size: currentSize
+    });
+
     [lastX, lastY] = [x, y];
 }
 
-function stopDrawing() { isDrawing = false; }
+function stopDrawing() {
+    isDrawing = false;
+}
 
 function getCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
+
     let clientX, clientY;
     if (e.type.startsWith('touch')) {
         clientX = e.touches[0].clientX;
@@ -170,7 +208,11 @@ function getCoordinates(e) {
         clientX = e.clientX;
         clientY = e.clientY;
     }
-    return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+
+    return [
+        (clientX - rect.left) * scaleX,
+        (clientY - rect.top) * scaleY
+    ];
 }
 
 function drawLine(x1, y1, x2, y2, color, size) {
@@ -185,102 +227,90 @@ function drawLine(x1, y1, x2, y2, color, size) {
     ctx.closePath();
 }
 
+function fillCanvas(color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
 function floodFill(x, y, fillColor) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    const width = canvas.width, height = canvas.height;
-    const startX = Math.floor(x), startY = Math.floor(y);
-    if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
+    const targetColor = getPixelColor(imageData, x, y);
 
-    const startIdx = (startY * width + startX) * 4;
-    const targetR = data[startIdx], targetG = data[startIdx + 1], targetB = data[startIdx + 2], targetA = data[startIdx + 3];
-    const fillR = parseInt(fillColor.substr(1, 2), 16);
-    const fillG = parseInt(fillColor.substr(3, 2), 16);
-    const fillB = parseInt(fillColor.substr(5, 2), 16);
+    // Convert hex color to RGB
+    const r = parseInt(fillColor.substr(1, 2), 16);
+    const g = parseInt(fillColor.substr(3, 2), 16);
+    const b = parseInt(fillColor.substr(5, 2), 16);
+    const fillColorRGB = { r, g, b, a: 255 };
 
-    if (targetR === fillR && targetG === fillG && targetB === fillB && targetA === 255) return;
+    // Don't fill if already the same color
+    if (colorsMatch(targetColor, fillColorRGB)) return;
 
-    // Helper to check if pixel matches target color
-    function matchesTarget(idx) {
-        return data[idx] === targetR && data[idx + 1] === targetG &&
-            data[idx + 2] === targetB && data[idx + 3] === targetA;
+    const pixelsToCheck = [{ x: Math.floor(x), y: Math.floor(y) }];
+    const checked = new Set();
+
+    while (pixelsToCheck.length > 0) {
+        const { x: currentX, y: currentY } = pixelsToCheck.pop();
+        const key = `${currentX},${currentY}`;
+
+        if (checked.has(key)) continue;
+        if (currentX < 0 || currentX >= canvas.width || currentY < 0 || currentY >= canvas.height) continue;
+
+        checked.add(key);
+
+        const currentColor = getPixelColor(imageData, currentX, currentY);
+        if (!colorsMatch(currentColor, targetColor)) continue;
+
+        setPixelColor(imageData, currentX, currentY, fillColorRGB);
+
+        pixelsToCheck.push({ x: currentX + 1, y: currentY });
+        pixelsToCheck.push({ x: currentX - 1, y: currentY });
+        pixelsToCheck.push({ x: currentX, y: currentY + 1 });
+        pixelsToCheck.push({ x: currentX, y: currentY - 1 });
     }
 
-    const stack = [[startX, startY]];
-    let iterations = 0;
-    const maxIterations = width * height;
-
-    while (stack.length > 0 && iterations < maxIterations) {
-        iterations++;
-        const [px, py] = stack.pop();
-
-        // Skip if out of bounds
-        if (px < 0 || px >= width || py < 0 || py >= height) continue;
-
-        let idx = (py * width + px) * 4;
-        if (!matchesTarget(idx)) continue;
-
-        // Scan left
-        let left = px;
-        while (left > 0 && matchesTarget((py * width + left - 1) * 4)) {
-            left--;
-        }
-
-        // Scan right and fill
-        let right = left;
-        while (right < width && matchesTarget((py * width + right) * 4)) {
-            const i = (py * width + right) * 4;
-            data[i] = fillR; data[i + 1] = fillG; data[i + 2] = fillB; data[i + 3] = 255;
-            right++;
-        }
-
-        // Add pixels above and below to stack
-        for (let scanX = left; scanX < right; scanX++) {
-            if (py > 0 && matchesTarget(((py - 1) * width + scanX) * 4)) {
-                stack.push([scanX, py - 1]);
-            }
-            if (py < height - 1 && matchesTarget(((py + 1) * width + scanX) * 4)) {
-                stack.push([scanX, py + 1]);
-            }
-        }
-    }
     ctx.putImageData(imageData, 0, 0);
+}
+
+function getPixelColor(imageData, x, y) {
+    const index = (Math.floor(y) * imageData.width + Math.floor(x)) * 4;
+    return {
+        r: imageData.data[index],
+        g: imageData.data[index + 1],
+        b: imageData.data[index + 2],
+        a: imageData.data[index + 3]
+    };
+}
+
+function setPixelColor(imageData, x, y, color) {
+    const index = (Math.floor(y) * imageData.width + Math.floor(x)) * 4;
+    imageData.data[index] = color.r;
+    imageData.data[index + 1] = color.g;
+    imageData.data[index + 2] = color.b;
+    imageData.data[index + 3] = color.a;
+}
+
+function colorsMatch(c1, c2) {
+    return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b && c1.a === c2.a;
 }
 
 function clearCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvasActions = [];
-}
-
-function replayCanvasActions() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvasActions.forEach(item => {
-        if (item.type === 'line') {
-            const d = item.data;
-            drawLine(d.from.x, d.from.y, d.to.x, d.to.y, d.color, d.size);
-        } else if (item.type === 'action') {
-            if (item.data.type === 'fill') {
-                floodFill(item.data.x, item.data.y, item.data.color);
-            }
-        }
-    });
 }
 
 function resizeCanvas() {
     const container = document.querySelector('.game-canvas-container');
-    if (!container) return;
-
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight - 60;
-
-    // Replay all actions at new resolution
-    replayCanvasActions();
+    if (container) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight - 60; // 10px shorter than before
+    }
 }
 window.addEventListener('resize', resizeCanvas);
 
 // --- EVENT LISTENERS ---
+
 btnRandomAvatar.addEventListener('click', randomizeAvatar);
 
+// Emoji picker
 document.querySelectorAll('.emoji-option').forEach(btn => {
     btn.addEventListener('click', () => {
         gameState.avatar.emoji = btn.dataset.emoji;
@@ -291,16 +321,34 @@ document.querySelectorAll('.emoji-option').forEach(btn => {
 btnPlay.addEventListener('click', () => {
     const name = inputName.value.trim();
     if (!name) return alert("Please enter a name!");
+
     gameState.name = name;
     localStorage.setItem('classgame_name', name);
-    joinGame();
+
+    // Parse short room ID from URL (format: /?123)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = [...urlParams.keys()][0] || 'public';
+
+    joinGame(roomId);
+});
+
+btnCreateRoom.addEventListener('click', () => {
+    const name = inputName.value.trim();
+    if (!name) return alert("Please enter a name!");
+
+    gameState.name = name;
+    localStorage.setItem('classgame_name', name);
+
+    createGame();
 });
 
 btnCopyLink.addEventListener('click', () => {
     const link = lobbyInviteLink.textContent;
     navigator.clipboard.writeText(link).then(() => {
         btnCopyLink.textContent = 'Copied!';
-        setTimeout(() => btnCopyLink.textContent = 'Copy', 2000);
+        setTimeout(() => {
+            btnCopyLink.textContent = 'Copy';
+        }, 2000);
     });
 });
 
@@ -313,12 +361,27 @@ gameChatInput.addEventListener('keypress', (e) => {
 
 [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(input => {
     input.addEventListener('change', () => {
-        if (gameState.isHost) updateSettings();
+        if (!gameState.isHost) return;
+        updateSettings();
     });
 });
 
 btnStartGame.addEventListener('click', () => {
-    socket.emit('start-game');
+    socket.emit('start-game', { roomId: gameState.roomId });
+});
+
+// Drawing Tools
+document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+        document.querySelector('.color-swatch.active')?.classList.remove('active');
+        swatch.classList.add('active');
+        currentColor = swatch.dataset.color;
+
+        // If eraser was active, switch back to pencil
+        if (currentTool === 'eraser') {
+            setActiveTool('pencil');
+        }
+    });
 });
 
 function setActiveTool(tool) {
@@ -332,7 +395,7 @@ document.getElementById('tool-eraser').addEventListener('click', () => setActive
 document.getElementById('tool-fill').addEventListener('click', () => setActiveTool('fill'));
 document.getElementById('tool-clear').addEventListener('click', () => {
     clearCanvas();
-    socket.emit('draw-action', { type: 'clear' });
+    socket.emit('draw-action', { roomId: gameState.roomId, type: 'clear' });
 });
 
 document.querySelectorAll('.brush-size').forEach(sizeBtn => {
@@ -352,17 +415,36 @@ canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
 canvas.addEventListener('touchend', stopDrawing);
 
 // --- SOCKET ACTIONS ---
-function joinGame() {
+
+function createGame() {
+    // Generate short room ID (10-999)
+    const roomId = String(Math.floor(Math.random() * 990) + 10);
+    socket.emit('create-game', {
+        roomId,
+        userName: gameState.name,
+        avatar: gameState.avatar
+    }, (response) => {
+        if (response.success) {
+            gameState.isHost = true;
+            gameState.roomId = roomId;
+            enterLobby();
+        } else {
+            alert(response.message);
+        }
+    });
+}
+
+function joinGame(roomId) {
     socket.emit('join-game', {
+        roomId,
         userName: gameState.name,
         avatar: gameState.avatar
     }, (response) => {
         if (response.success) {
             gameState.isHost = response.isHost;
+            gameState.roomId = roomId;
             gameState.settings = response.settings;
-            if (!response.isLateJoiner) {
-                enterLobby();
-            }
+            enterLobby();
         } else {
             alert(response.message);
         }
@@ -371,18 +453,25 @@ function joinGame() {
 
 function enterLobby() {
     showScreen('lobby');
-    renderPlayerList();
+    updateLobbyUI();
 
+    // Get server info first to construct proper invite link
     socket.emit('get-server-info', {}, (info) => {
         serverIpSpan.textContent = info.ip + ':' + info.port;
-        // Simple URL - no room code needed!
-        lobbyInviteLink.textContent = `http://${info.ip}:${info.port}`;
+
+        // Use server IP for invite link - numeric room ID only
+        const inviteUrl = `http://${info.ip}:${info.port}/?${gameState.roomId}`;
+        lobbyInviteLink.textContent = inviteUrl;
     });
 
     if (gameState.isHost) {
         [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(el => el.disabled = false);
         btnStartGame.classList.remove('hidden');
     }
+}
+
+function updateLobbyUI() {
+    renderPlayerList();
 }
 
 function updateSettings() {
@@ -394,68 +483,21 @@ function updateSettings() {
         customWords: settingCustomWords.value,
         myWordsOnly: settingMyWordsOnly.checked
     };
-    socket.emit('update-settings', { settings });
+    socket.emit('update-settings', { roomId: gameState.roomId, settings });
 }
 
 function sendChat(message, context) {
     if (!message.trim()) return;
-    socket.emit('send-chat', { message });
+    socket.emit('send-chat', { roomId: gameState.roomId, message });
     if (context === 'lobby') lobbyChatInput.value = '';
     if (context === 'game') gameChatInput.value = '';
 }
 
 // --- SOCKET LISTENERS ---
+
 socket.on('player-update', (players) => {
     gameState.players = players;
     renderPlayerList();
-});
-
-socket.on('game-sync', (syncData) => {
-    console.log('Late joiner sync:', syncData);
-    gameState.players = syncData.players;
-    gameState.drawerId = syncData.drawerId;
-
-    showScreen('game');
-    document.getElementById('current-round').textContent = syncData.round;
-    document.getElementById('total-rounds').textContent = syncData.totalRounds;
-    document.getElementById('timer').textContent = syncData.timer;
-
-    if (syncData.wordLength > 0) {
-        document.getElementById('word-display').textContent = new Array(syncData.wordLength).fill('_').join(' ');
-    }
-
-    const toolbar = document.querySelector('.toolbar');
-    if (toolbar) toolbar.style.display = 'none';
-
-    const overlay = document.getElementById('canvas-overlay');
-    if (syncData.status === 'drawing') {
-        overlay.classList.add('hidden');
-        setTimeout(() => {
-            resizeCanvas();
-            if (syncData.canvasActions) {
-                syncData.canvasActions.forEach(item => {
-                    if (item.type === 'line') {
-                        const d = item.data;
-                        drawLine(d.from.x, d.from.y, d.to.x, d.to.y, d.color, d.size);
-                    } else if (item.type === 'action') {
-                        if (item.data.type === 'clear') clearCanvas();
-                        if (item.data.type === 'fill') floodFill(item.data.x, item.data.y, item.data.color);
-                    }
-                });
-            }
-        }, 150);
-    } else {
-        const drawer = gameState.players.find(p => p.id === syncData.drawerId);
-        document.getElementById('overlay-message').textContent = `${drawer ? drawer.name : 'Someone'} is choosing a word...`;
-        overlay.classList.remove('hidden');
-    }
-
-    renderPlayerList();
-    gameChatMessages.innerHTML = '';
-    const div = document.createElement('div');
-    div.className = 'chat-message system';
-    div.textContent = 'You joined mid-game! Guess now, draw next round.';
-    gameChatMessages.appendChild(div);
 });
 
 socket.on('settings-update', (settings) => {
@@ -477,6 +519,7 @@ socket.on('chat-message', (msg) => {
     div.className = 'chat-message';
     if (msg.system) div.classList.add('system');
     if (msg.isCorrect) div.classList.add('correct-guess');
+
     div.innerHTML = msg.system ? msg.content : `<b>${escapeHtml(msg.sender)}:</b> ${escapeHtml(msg.content)}`;
 
     if (gameState.screen === 'lobby') {
@@ -488,7 +531,9 @@ socket.on('chat-message', (msg) => {
     }
 });
 
-socket.on('game-started', () => showScreen('game'));
+socket.on('game-started', () => {
+    showScreen('game');
+});
 
 socket.on('timer-update', (time) => {
     document.getElementById('timer').textContent = time;
@@ -497,12 +542,14 @@ socket.on('timer-update', (time) => {
 socket.on('turn-update', (data) => {
     document.getElementById('current-round').textContent = data.round;
     document.getElementById('total-rounds').textContent = data.totalRounds;
+
     gameState.drawerId = data.drawerId;
     renderPlayerList();
 
     const isMe = data.drawerId === socket.id;
     const toolbar = document.querySelector('.toolbar');
 
+    // Hide/show toolbar based on whether user is drawing
     if (isMe) {
         if (toolbar) toolbar.style.display = 'flex';
         document.getElementById('overlay-message').textContent = "Choose a word!";
@@ -529,7 +576,7 @@ socket.on('word-selection', (words) => {
 
     overlay.querySelectorAll('.btn-word').forEach(btn => {
         btn.addEventListener('click', () => {
-            socket.emit('select-word', { word: btn.textContent });
+            socket.emit('select-word', { roomId: gameState.roomId, word: btn.textContent });
             overlay.classList.add('hidden');
         });
     });
@@ -538,11 +585,17 @@ socket.on('word-selection', (words) => {
 socket.on('drawing-phase-start', (data) => {
     document.getElementById('canvas-overlay').classList.add('hidden');
     clearCanvas();
-    document.getElementById('word-display').textContent = new Array(data.wordLength).fill('_').join(' ');
 
+    // Show dashes
+    const dashes = new Array(data.wordLength).fill('_').join(' ');
+    document.getElementById('word-display').textContent = dashes;
+
+    // Show toolbar for drawer
     const isDrawer = gameState.drawerId === socket.id;
     const toolbar = document.querySelector('.toolbar');
-    if (toolbar) toolbar.style.display = isDrawer ? 'flex' : 'none';
+    if (toolbar) {
+        toolbar.style.display = isDrawer ? 'flex' : 'none';
+    }
 });
 
 socket.on('your-word', (word) => {
@@ -555,11 +608,14 @@ socket.on('turn-end', (data) => {
 });
 
 socket.on('game-ended', (data) => {
+    // Sort players by score
     const sorted = [...data.players].sort((a, b) => b.score - a.score);
 
+    // Update podium with top 3
     for (let i = 0; i < 3; i++) {
         const player = sorted[i];
         const place = i + 1;
+
         if (player) {
             document.getElementById(`winner-${place}-avatar`).textContent = player.avatar?.emoji || '😀';
             document.getElementById(`winner-${place}-name`).textContent = player.name;
@@ -574,23 +630,22 @@ socket.on('game-ended', (data) => {
     showScreen('gameover');
 });
 
-document.getElementById('btn-play-again').addEventListener('click', () => showScreen('lobby'));
+// Play Again button
+document.getElementById('btn-play-again').addEventListener('click', () => {
+    showScreen('lobby');
+});
 
 socket.on('draw-line', (data) => {
     drawLine(data.from.x, data.from.y, data.to.x, data.to.y, data.color, data.size);
-    canvasActions.push({ type: 'line', data });
 });
 
 socket.on('draw-action', (data) => {
-    if (data.type === 'clear') {
-        clearCanvas();
-    } else if (data.type === 'fill') {
-        floodFill(data.x, data.y, data.color);
-        canvasActions.push({ type: 'action', data });
-    }
+    if (data.type === 'clear') clearCanvas();
+    if (data.type === 'fill') floodFill(data.x, data.y, data.color);
 });
 
-// --- HELPERS ---
+// --- RENDER HELPERS ---
+
 function renderPlayerList() {
     const list = gameState.screen === 'lobby' ? lobbyPlayerList : gamePlayerList;
     lobbyPlayerCount.textContent = gameState.players.length;
@@ -603,10 +658,15 @@ function renderPlayerList() {
         if (p.hasGuessed) div.classList.add('has-guessed');
 
         const isDrawer = gameState.drawerId === p.id;
+
         div.innerHTML = `
-            <div class="player-avatar-small">${p.avatar?.emoji || '😀'}</div>
+            <div class="player-avatar-small">${p.avatar.emoji || '😀'}</div>
             <div class="player-info">
-                <span class="player-name">${escapeHtml(p.name)} ${p.isHost ? '👑' : ''} ${isDrawer ? '✏️' : ''}</span>
+                <span class="player-name">
+                    ${escapeHtml(p.name)} 
+                    ${p.isHost ? '👑' : ''}
+                    ${isDrawer ? '✏️' : ''}
+                </span>
                 <span class="player-score">Points: ${p.score || 0}</span>
             </div>
         `;
@@ -616,7 +676,12 @@ function renderPlayerList() {
 
 function escapeHtml(text) {
     if (!text) return text;
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 init();

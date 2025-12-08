@@ -1,4 +1,4 @@
-# ClassGame (v0.2.0)
+# ClassGame (v0.3.0)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 
@@ -6,13 +6,15 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 
 - 🎨 **Real-time Drawing** - Smooth drawing canvas with multiple tools (pencil, eraser, fill, clear)
 - 🎮 **Multiplayer Fun** - Play with friends on your local network
+- 🔗 **Simple Joining** - Just share `192.168.x.x:3000` - no room codes needed!
 - 🏆 **Scoring System** - Points based on how quickly you guess (2000 max, 100 min)
-- 💡 **Hint System** - Random letters reveal automatically during the game to help guessers
+- 🔄 **Score Recovery** - Reconnecting players get their score back automatically
+- 💡 **Hint System** - Random letters reveal automatically during the game
 - 🥇 **Game Over Podium** - Celebrate the top 3 winners with a fun podium display
 - 😀 **Emoji Avatars** - Choose from 16 fun emoji avatars
 - 🎯 **Custom Words** - Add your own words (supports any language, including Greek!)
 - ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), word count (3-8), and hints (2-5)
-- 📋 **Easy Sharing** - Copy invite link with one click
+- � **Responsive** - Works on tablets and smaller screens
 
 ## Quick Start
 
@@ -52,15 +54,16 @@ npm start
 
 ## How to Play
 
-1. **Create a Room**: Enter your name, choose an emoji avatar, and click "Create Room"
-2. **Invite Friends**: Share the invite link with your friends
-3. **Start the Game**: Once everyone has joined (minimum 2 players), click "Start Game"
+1. **Join the Game**: Enter your name, choose an emoji avatar, and click "Play!"
+2. **Invite Friends**: Share the server URL with your friends (just the IP and port!)
+3. **Start the Game**: Once everyone has joined (minimum 2 players), the host clicks "Start Game"
 4. **Draw or Guess**: 
    - When it's your turn to draw, choose a word and draw it
    - When you're guessing, type your guess in the chat
 5. **Score Points**: 
    - Guessers earn 2000 points (maximum) for quick guesses, down to 100 points minimum
    - Drawer earns 50% of points from each correct guess
+6. **Reconnect**: If you disconnect, rejoin with the same name to get your score back!
 
 ## Game Settings (Host Only)
 
