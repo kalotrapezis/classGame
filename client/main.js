@@ -20,7 +20,8 @@ let gameState = {
         drawTime: 80,
         wordCount: 3,
         hints: 2,
-        customWords: ''
+        customWords: '',
+        language: 'en'
     }
 };
 
@@ -55,6 +56,7 @@ const settingWordCount = document.getElementById('setting-word-count');
 const settingCustomWords = document.getElementById('setting-custom-words');
 const settingMyWordsOnly = document.getElementById('setting-my-words-only');
 const settingHints = document.getElementById('setting-hints');
+const settingLanguage = document.getElementById('setting-language');
 
 // Game
 const gamePlayerList = document.getElementById('game-player-list');
@@ -266,14 +268,16 @@ function replayCanvasActions() {
     });
 }
 
+// Fixed canvas resolution for consistency across all clients
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 600;
+
 function resizeCanvas() {
-    const container = document.querySelector('.game-canvas-container');
-    if (!container) return;
+    // Use fixed resolution - CSS handles the visual scaling
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
 
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight - 60;
-
-    // Replay all actions at new resolution
+    // Replay all actions at fixed resolution
     replayCanvasActions();
 }
 window.addEventListener('resize', resizeCanvas);
@@ -311,7 +315,7 @@ gameChatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendChat(gameChatInput.value, 'game');
 });
 
-[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(input => {
+[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingLanguage].forEach(input => {
     input.addEventListener('change', () => {
         if (gameState.isHost) updateSettings();
     });
@@ -380,7 +384,7 @@ function enterLobby() {
     });
 
     if (gameState.isHost) {
-        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints].forEach(el => el.disabled = false);
+        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingLanguage].forEach(el => el.disabled = false);
         btnStartGame.classList.remove('hidden');
     }
 }
@@ -392,7 +396,8 @@ function updateSettings() {
         wordCount: parseInt(settingWordCount.value),
         hints: parseInt(settingHints.value),
         customWords: settingCustomWords.value,
-        myWordsOnly: settingMyWordsOnly.checked
+        myWordsOnly: settingMyWordsOnly.checked,
+        language: settingLanguage.value
     };
     socket.emit('update-settings', { settings });
 }
@@ -464,6 +469,7 @@ socket.on('settings-update', (settings) => {
     settingDrawTime.value = settings.drawTime;
     settingWordCount.value = settings.wordCount;
     settingHints.value = settings.hints || 2;
+    settingLanguage.value = settings.language || 'en';
     settingCustomWords.value = settings.customWords;
     settingMyWordsOnly.checked = settings.myWordsOnly || false;
 });

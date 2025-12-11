@@ -1,5 +1,25 @@
 # ClassGame - Release Notes
 
+## v0.3.1 (2025-12-11)
+
+### New Features
+- **Greek Language Support** 🇬🇷: Added language selector (English/Greek) in lobby settings
+- **98 Greek Words**: Comprehensive word list including everyday objects, body parts, professions, and actions
+
+### Bug Fixes
+- **Accent-Insensitive Matching**: Guesses now work with or without Greek accents (σπίτι = σπιτι = ΣΠΙΤΙ)
+- **Case-Insensitive Matching**: Uppercase and lowercase letters are treated the same
+- **Hints in Original Case**: Revealed letters now show in lowercase instead of uppercase
+- **Fixed Canvas Consistency**: Canvas now uses fixed 800x600 resolution for identical drawing across all screen sizes
+- **Tablet/Mobile Scroll**: Fixed scrolling issues on devices with small screens - toolbar and chat now accessible
+
+### Technical Changes
+- Canvas uses fixed internal resolution with CSS scaling
+- Body overflow changed from `hidden` to `auto` for proper scrolling
+- Added `100dvh` (dynamic viewport height) for better mobile support
+
+---
+
 ## v0.3.0 (2025-12-08)
 
 ### Major Changes

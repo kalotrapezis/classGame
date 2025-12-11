@@ -1,4 +1,4 @@
-# ClassGame (v0.3.0)
+# ClassGame (v0.3.1)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 
@@ -12,9 +12,10 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 - 💡 **Hint System** - Random letters reveal automatically during the game
 - 🥇 **Game Over Podium** - Celebrate the top 3 winners with a fun podium display
 - 😀 **Emoji Avatars** - Choose from 16 fun emoji avatars
-- 🎯 **Custom Words** - Add your own words (supports any language, including Greek!)
+- 🎯 **Custom Words** - Add your own words (comma-separated)
+- 🇬🇷 **Greek Language** - Built-in support for Greek with 98 words and accent-insensitive matching
 - ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), word count (3-8), and hints (2-5)
-- � **Responsive** - Works on tablets and smaller screens
+- 📱 **Responsive** - Works on tablets and smaller screens with proper scrolling
 
 ## Quick Start
 

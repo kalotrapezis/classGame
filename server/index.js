@@ -48,10 +48,28 @@ const MAX_PLAYERS = 20;
 const MAX_CANVAS_ACTIONS = 2000;
 const CONNECTION_RATE_LIMIT_MS = 100;
 
-const WORDS = [
+// Normalize text: remove accents and convert to lowercase for comparison
+function normalizeText(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+const WORDS_EN = [
   "apple", "banana", "carrot", "dog", "elephant", "fish", "guitar", "house", "ice cream", "jellyfish",
   "kite", "lion", "moon", "nest", "orange", "penguin", "queen", "rabbit", "sun", "tree",
   "umbrella", "violin", "watermelon", "xylophone", "yacht", "zebra", "airplane", "ball", "cat", "door"
+];
+
+const WORDS_GR = [
+  "σπίτι", "δέντρο", "σκύλος", "γάτα", "ήλιος", "φεγγάρι", "νερό", "φωτιά", "αέρας", "σύννεφο",
+  "βουνό", "θάλασσα", "ποτάμι", "ψάρι", "πουλί", "αμάξι", "ποδήλατο", "μπάλα", "βιβλίο", "καρέκλα",
+  "τραπέζι", "πόρτα", "παράθυρο", "κλειδί", "ρολόι", "τηλέφωνο", "χέρι", "πόδι", "μάτι", "μύτη",
+  "στόμα", "αυτί", "μαλλιά", "καπέλο", "παπούτσι", "μπλούζα", "παντελόνι", "φόρεμα", "καρδιά", "αστέρι",
+  "κύκλος", "τετράγωνο", "τρίγωνο", "γραμμή", "βροχή", "χιόνι", "αστραπή", "κεραυνός", "φως", "σκοτάδι",
+  "κέικ", "ψωμί", "μήλο", "μπανάνα", "πορτοκάλι", "σταφύλι", "πιρούνι", "κουτάλι", "μαχαίρι", "πιάτο",
+  "φλιτζάνι", "γυαλί", "λουλούδι", "γρασίδι", "πέτρα", "δρόμος", "γέφυρα", "βάρκα", "πλοίο", "αεροπλάνο",
+  "τρένο", "λεωφορείο", "ασανσέρ", "σκάλα", "χαρτί", "μολύβι", "σβήστρα", "κανόνας", "σχολείο", "δάσκαλος",
+  "μαθητής", "γιατρός", "αστυνόμος", "πυροσβέστης", "μάγειρας", "μουσική", "τραγούδι", "χορός", "ύπνος", "ξύπνιος",
+  "τρέξιμο", "περπάτημα", "γέλιο", "κλάμα", "φιλί", "αγκαλιά", "δώρο", "χρήματα"
 ];
 
 // Only ONE room per server instance
@@ -64,7 +82,8 @@ let room = {
     wordCount: 3,
     hints: 2,
     customWords: '',
-    myWordsOnly: false
+    myWordsOnly: false,
+    language: 'en'
   },
   players: [],
   game: {
@@ -93,7 +112,10 @@ function getWords(count, settings) {
     }
   }
 
-  let wordPool = [...WORDS];
+  // Select word pool based on language
+  const baseWords = (settings && settings.language === 'gr') ? WORDS_GR : WORDS_EN;
+  let wordPool = [...baseWords];
+
   if (settings && settings.customWords) {
     const customWordList = settings.customWords.split(',').map(w => w.trim()).filter(w => w.length > 0);
     wordPool = [...wordPool, ...customWordList];
@@ -222,8 +244,8 @@ io.on('connection', (socket) => {
     // GUESSING LOGIC
     if (room.status === 'drawing' && room.game.currentWord) {
       const isDrawer = room.players[room.game.currentDrawerIndex].id === socket.id;
-      const targetWord = room.game.currentWord.toLowerCase();
-      const guess = message.trim().toLowerCase();
+      const targetWord = normalizeText(room.game.currentWord);
+      const guess = normalizeText(message);
 
       if (isDrawer) {
         io.to('game-room').emit('chat-message', { sender: player.name, content: message, system: false });
@@ -378,7 +400,8 @@ function resetRoom() {
       wordCount: 3,
       hints: 2,
       customWords: '',
-      myWordsOnly: false
+      myWordsOnly: false,
+      language: 'en'
     },
     players: [],
     game: {
@@ -481,7 +504,7 @@ function revealHint() {
   let hintDisplay = '';
   for (let i = 0; i < word.length; i++) {
     if (word[i] === ' ') hintDisplay += '  ';
-    else if (room.game.revealedIndices.includes(i)) hintDisplay += word[i].toUpperCase() + ' ';
+    else if (room.game.revealedIndices.includes(i)) hintDisplay += word[i] + ' ';
     else hintDisplay += '_ ';
   }
 
