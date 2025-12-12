@@ -1,11 +1,82 @@
 import { io } from "socket.io-client";
 import './style.css';
 
-// Connect to server
+// Connect to server with robust reconnection settings for WiFi stability
 const serverUrl = window.location.origin;
-const socket = io(serverUrl);
+const socket = io(serverUrl, {
+    reconnection: true,
+    reconnectionAttempts: 20,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 30000,
+    autoConnect: true
+});
 
 console.log(`Connecting to ClassGame server at: ${serverUrl}`);
+
+// --- CONNECTION STATUS HANDLING ---
+let wasConnected = false;
+let reconnectOverlay = null;
+
+function showReconnectOverlay() {
+    if (reconnectOverlay) return;
+    reconnectOverlay = document.createElement('div');
+    reconnectOverlay.id = 'reconnect-overlay';
+    reconnectOverlay.innerHTML = `
+        <div class="reconnect-content">
+            <div class="reconnect-spinner"></div>
+            <h2>Reconnecting...</h2>
+            <p>Please wait, connection lost</p>
+        </div>
+    `;
+    document.body.appendChild(reconnectOverlay);
+}
+
+function hideReconnectOverlay() {
+    if (reconnectOverlay) {
+        reconnectOverlay.remove();
+        reconnectOverlay = null;
+    }
+}
+
+socket.on('connect', () => {
+    console.log('Connected to server');
+    hideReconnectOverlay();
+
+    // Auto-rejoin if we were in the game before
+    if (wasConnected && gameState.name) {
+        console.log('Reconnected! Auto-rejoining as:', gameState.name);
+        socket.emit('join-game', {
+            userName: gameState.name,
+            avatar: gameState.avatar
+        }, (response) => {
+            if (response.success) {
+                gameState.isHost = response.isHost;
+                console.log('Successfully rejoined the game');
+            }
+        });
+    }
+    wasConnected = true;
+});
+
+socket.on('disconnect', (reason) => {
+    console.log('Disconnected:', reason);
+    if (gameState.screen !== 'landing') {
+        showReconnectOverlay();
+    }
+});
+
+socket.on('reconnect_attempt', (attemptNumber) => {
+    console.log(`Reconnection attempt ${attemptNumber}...`);
+});
+
+socket.on('reconnect_failed', () => {
+    console.log('Failed to reconnect after all attempts');
+    if (reconnectOverlay) {
+        reconnectOverlay.querySelector('h2').textContent = 'Connection Failed';
+        reconnectOverlay.querySelector('p').textContent = 'Please refresh the page';
+    }
+});
 
 // --- STATE ---
 let gameState = {
@@ -20,6 +91,7 @@ let gameState = {
         drawTime: 80,
         wordCount: 3,
         hints: 2,
+        difficulty: 'easy',
         customWords: '',
         language: 'en'
     }
@@ -56,6 +128,7 @@ const settingWordCount = document.getElementById('setting-word-count');
 const settingCustomWords = document.getElementById('setting-custom-words');
 const settingMyWordsOnly = document.getElementById('setting-my-words-only');
 const settingHints = document.getElementById('setting-hints');
+const settingDifficulty = document.getElementById('setting-difficulty');
 const settingLanguage = document.getElementById('setting-language');
 
 // Game
@@ -123,6 +196,76 @@ let currentColor = '#000000';
 let currentSize = 5;
 let canvasActions = []; // Store all drawing actions for replay on resize
 
+// --- THROTTLING FOR WIFI OPTIMIZATION (ADAPTIVE) ---
+let pendingLines = [];
+let throttleTimer = null;
+let currentThrottleMs = 80; // Default: safe for WiFi (80ms)
+let lastPingTime = 0;
+let connectionQuality = 'unknown'; // 'good', 'medium', 'slow', 'unknown'
+
+// Measure connection quality and adapt throttle
+function measureConnectionQuality() {
+    const start = Date.now();
+    socket.emit('ping-check', {}, () => {
+        const latency = Date.now() - start;
+        lastPingTime = latency;
+
+        // Adaptive throttling based on latency
+        if (latency < 50) {
+            currentThrottleMs = 50;
+            connectionQuality = 'good';
+        } else if (latency < 100) {
+            currentThrottleMs = 80;
+            connectionQuality = 'medium';
+        } else if (latency < 200) {
+            currentThrottleMs = 120;
+            connectionQuality = 'slow';
+        } else {
+            currentThrottleMs = 150;
+            connectionQuality = 'very-slow';
+        }
+
+        console.log(`Connection: ${connectionQuality} (${latency}ms latency, throttle: ${currentThrottleMs}ms)`);
+    });
+}
+
+// Measure on connect and periodically during game
+socket.on('connect', () => {
+    setTimeout(measureConnectionQuality, 1000); // Measure after 1s
+});
+
+// Re-measure every 30 seconds during gameplay
+setInterval(() => {
+    if (gameState.screen === 'game') {
+        measureConnectionQuality();
+    }
+}, 30000);
+
+function sendPendingLines() {
+    if (pendingLines.length === 0) return;
+
+    // Send all pending lines as a batch
+    if (pendingLines.length === 1) {
+        socket.emit('draw-line', pendingLines[0]);
+    } else {
+        socket.emit('draw-batch', pendingLines);
+    }
+    pendingLines = [];
+}
+
+function queueLine(lineData) {
+    pendingLines.push(lineData);
+    canvasActions.push({ type: 'line', data: lineData });
+
+    // Start throttle timer if not already running (uses adaptive interval)
+    if (!throttleTimer) {
+        throttleTimer = setTimeout(() => {
+            sendPendingLines();
+            throttleTimer = null;
+        }, currentThrottleMs);
+    }
+}
+
 function startDrawing(e) {
     if (gameState.screen !== 'game') return;
     if (!document.getElementById('canvas-overlay').classList.contains('hidden')) return;
@@ -153,12 +296,21 @@ function draw(e) {
 
     drawLine(lastX, lastY, x, y, color, currentSize);
     const lineData = { from: { x: lastX, y: lastY }, to: { x, y }, color, size: currentSize };
-    canvasActions.push({ type: 'line', data: lineData });
-    socket.emit('draw-line', lineData);
+    queueLine(lineData); // Use throttled queue instead of direct emit
     [lastX, lastY] = [x, y];
 }
 
-function stopDrawing() { isDrawing = false; }
+function stopDrawing() {
+    isDrawing = false;
+    // Send any remaining lines immediately when user stops drawing
+    if (pendingLines.length > 0) {
+        if (throttleTimer) {
+            clearTimeout(throttleTimer);
+            throttleTimer = null;
+        }
+        sendPendingLines();
+    }
+}
 
 function getCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
@@ -315,7 +467,7 @@ gameChatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendChat(gameChatInput.value, 'game');
 });
 
-[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingLanguage].forEach(input => {
+[settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingDifficulty, settingLanguage].forEach(input => {
     input.addEventListener('change', () => {
         if (gameState.isHost) updateSettings();
     });
@@ -384,7 +536,7 @@ function enterLobby() {
     });
 
     if (gameState.isHost) {
-        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingLanguage].forEach(el => el.disabled = false);
+        [settingRounds, settingDrawTime, settingWordCount, settingCustomWords, settingMyWordsOnly, settingHints, settingDifficulty, settingLanguage].forEach(el => el.disabled = false);
         btnStartGame.classList.remove('hidden');
     }
 }
@@ -395,6 +547,7 @@ function updateSettings() {
         drawTime: parseInt(settingDrawTime.value),
         wordCount: parseInt(settingWordCount.value),
         hints: parseInt(settingHints.value),
+        difficulty: settingDifficulty.value,
         customWords: settingCustomWords.value,
         myWordsOnly: settingMyWordsOnly.checked,
         language: settingLanguage.value
@@ -469,6 +622,7 @@ socket.on('settings-update', (settings) => {
     settingDrawTime.value = settings.drawTime;
     settingWordCount.value = settings.wordCount;
     settingHints.value = settings.hints || 2;
+    settingDifficulty.value = settings.difficulty || 'easy';
     settingLanguage.value = settings.language || 'en';
     settingCustomWords.value = settings.customWords;
     settingMyWordsOnly.checked = settings.myWordsOnly || false;
@@ -585,6 +739,14 @@ document.getElementById('btn-play-again').addEventListener('click', () => showSc
 socket.on('draw-line', (data) => {
     drawLine(data.from.x, data.from.y, data.to.x, data.to.y, data.color, data.size);
     canvasActions.push({ type: 'line', data });
+});
+
+// Handle batched drawing for WiFi optimization
+socket.on('draw-batch', (lines) => {
+    lines.forEach(data => {
+        drawLine(data.from.x, data.from.y, data.to.x, data.to.y, data.color, data.size);
+        canvasActions.push({ type: 'line', data });
+    });
 });
 
 socket.on('draw-action', (data) => {

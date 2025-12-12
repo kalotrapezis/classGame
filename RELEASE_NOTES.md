@@ -1,5 +1,33 @@
 # ClassGame - Release Notes
 
+## v0.4.0 (2025-12-12)
+
+### New Features
+- **Difficulty Toggle** 🎯: Choose between Easy and Hard modes in lobby settings
+  - **Easy Mode**: Case-insensitive, ignores Greek accents (σπίτι = ΣΠΙΤΙ = σπιτι)
+  - **Hard Mode**: Exact match required - correct case AND Greek accents (τόνοι) must be correct
+- **Auto-Reconnect** 🔄: Players automatically rejoin if WiFi connection drops
+  - Visual "Reconnecting..." overlay with spinner
+  - Up to 20 reconnection attempts with exponential backoff
+  - Preserves player scores on reconnect
+
+### WiFi Stability Improvements
+- **Adaptive Throttling** 📶: Drawing data is batched based on network quality
+  - Good connection (< 50ms): 50ms batches
+  - Slow connection (> 200ms): 150ms batches
+  - Reduces network load by 60-80%
+- **Increased Wait Time**: 8 seconds between rounds (was 5) to allow disconnected clients to reconnect
+- **Extended Timeouts**: 60-second ping timeout prevents premature disconnections on slow WiFi
+- **Batched Drawing Events**: Multiple draw actions sent as single packets to reduce network overhead
+
+### Technical Changes
+- Added `ping-check` event for client to measure connection latency
+- Socket.io configured with `pingTimeout: 60000`, `pingInterval: 25000`
+- Draw events use adaptive interval based on measured RTT
+- `draw-batch` event for efficient multi-line transmission
+
+---
+
 ## v0.3.1 (2025-12-11)
 
 ### New Features

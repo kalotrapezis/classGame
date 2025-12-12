@@ -38,7 +38,10 @@ if (USE_TLS) {
 }
 
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: { origin: "*", methods: ["GET", "POST"] },
+  pingTimeout: 60000,      // Wait 60s before considering client disconnected
+  pingInterval: 25000,     // Ping every 25s to keep connection alive
+  connectTimeout: 30000    // Allow 30s for initial connection
 });
 
 const networkDiscovery = new NetworkDiscovery();
@@ -48,9 +51,14 @@ const MAX_PLAYERS = 20;
 const MAX_CANVAS_ACTIONS = 2000;
 const CONNECTION_RATE_LIMIT_MS = 100;
 
-// Normalize text: remove accents and convert to lowercase for comparison
+// Normalize text: remove accents and convert to lowercase for comparison (EASY mode)
 function normalizeText(str) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// Exact text comparison with accents preserved (HARD mode) - just trim whitespace
+function normalizeTextHard(str) {
+  return str.trim();
 }
 
 const WORDS_EN = [
@@ -81,6 +89,7 @@ let room = {
     drawTime: 80,
     wordCount: 3,
     hints: 2,
+    difficulty: 'easy',
     customWords: '',
     myWordsOnly: false,
     language: 'en'
@@ -244,8 +253,12 @@ io.on('connection', (socket) => {
     // GUESSING LOGIC
     if (room.status === 'drawing' && room.game.currentWord) {
       const isDrawer = room.players[room.game.currentDrawerIndex].id === socket.id;
-      const targetWord = normalizeText(room.game.currentWord);
-      const guess = normalizeText(message);
+
+      // Use difficulty setting for comparison
+      const isHardMode = room.settings.difficulty === 'hard';
+      const normalizeFunc = isHardMode ? normalizeTextHard : normalizeText;
+      const targetWord = normalizeFunc(room.game.currentWord);
+      const guess = normalizeFunc(message);
 
       if (isDrawer) {
         io.to('game-room').emit('chat-message', { sender: player.name, content: message, system: false });
@@ -282,8 +295,11 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const dist = levenshtein(guess, targetWord);
-      const threshold = targetWord.length > 5 ? 2 : 1;
+      // Close guess detection (always use easy mode normalization for this)
+      const distTarget = normalizeText(room.game.currentWord);
+      const distGuess = normalizeText(message);
+      const dist = levenshtein(distGuess, distTarget);
+      const threshold = distTarget.length > 5 ? 2 : 1;
       if (dist > 0 && dist <= threshold) {
         socket.emit('chat-message', { content: `'${message}' is close!`, system: true, isClose: true });
       }
@@ -319,6 +335,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Batched drawing for WiFi optimization - receives multiple lines at once
+  socket.on('draw-batch', (lines) => {
+    try {
+      lines.forEach(data => {
+        if (room.game.canvasActions.length < MAX_CANVAS_ACTIONS) {
+          room.game.canvasActions.push({ type: 'line', data });
+        }
+      });
+      socket.to('game-room').emit('draw-batch', lines);
+    } catch (err) {
+      console.error('Error in draw-batch:', err);
+    }
+  });
+
   socket.on('draw-action', (data) => {
     try {
       if (data.type === 'clear') {
@@ -339,6 +369,12 @@ io.on('connection', (socket) => {
       ip: LOCAL_IP,
       port: address ? address.port : (process.env.PORT || 3000)
     });
+  });
+
+  // Ping check for client to measure latency and adapt throttling
+  socket.on('ping-check', (data, callback) => {
+    if (typeof data === 'function') callback = data;
+    if (typeof callback === 'function') callback();
   });
 
   socket.on('disconnect', () => {
@@ -399,6 +435,7 @@ function resetRoom() {
       drawTime: 80,
       wordCount: 3,
       hints: 2,
+      difficulty: 'easy',
       customWords: '',
       myWordsOnly: false,
       language: 'en'
@@ -521,7 +558,8 @@ function endTurn() {
   }
 
   io.to('game-room').emit('turn-end', { word: room.game.currentWord });
-  startTimer(5, () => startTurn());
+  // Wait 8 seconds between turns to allow WiFi clients to reconnect
+  startTimer(8, () => startTurn());
 }
 
 function endGame() {
