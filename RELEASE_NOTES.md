@@ -1,5 +1,32 @@
 # ClassGame - Release Notes
 
+## v1.0.0 (2025-12-15) 🎉
+
+### Major New Feature: Voting System 🗳️
+A new anti-cheating system that allows players to vote against suspected cheaters!
+
+- **🗳️ Vote Icons**: Click the ballot box icon next to any player's name to start a vote
+- **Floating Vote Modal**: All players see a popup with 👍 Keep / 👎 Penalize buttons
+- **20 Second Timer**: Votes auto-resolve after countdown
+- **Majority Rules**: Only actual votes count (abstentions ignored)
+- **Heavy Penalties**:
+  - Vote **passes** (majority 👎): Target loses **4000 points**
+  - Vote **fails** (majority 👍 or tie): Initiator loses **1000 points**
+- **Rate Limiting**: 
+  - Each player can only start 1 vote per game round
+  - Only 1 vote can be active at a time
+
+### UI/Layout Fixes
+- **Fixed Chat Scroll**: Chat messages now scroll within their own container instead of expanding the entire page
+- **Game Screen Constrained**: Game screen uses fixed viewport height (100vh) to prevent layout issues
+- **Lobby Settings Scroll**: Settings form is now scrollable with reduced padding for better fit
+
+### Stability Improvements
+- **Server Crash Fix**: Added null check in `revealHint()` to prevent crash when drawer disconnects mid-hint
+- **Clean Asset Builds**: Fixed Vite build to properly output CSS and JS bundles
+
+---
+
 ## v0.4.0 (2025-12-12)
 
 ### New Features

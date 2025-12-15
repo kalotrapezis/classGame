@@ -507,6 +507,55 @@ canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(
 canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
 canvas.addEventListener('touchend', stopDrawing);
 
+// --- VOTING SYSTEM ---
+let voteTimerInterval = null;
+
+// Vote modal button handlers
+document.getElementById('btn-vote-up').addEventListener('click', () => {
+    socket.emit('cast-vote', { vote: 'up' });
+    document.getElementById('btn-vote-up').disabled = true;
+    document.getElementById('btn-vote-down').disabled = true;
+});
+
+document.getElementById('btn-vote-down').addEventListener('click', () => {
+    socket.emit('cast-vote', { vote: 'down' });
+    document.getElementById('btn-vote-up').disabled = true;
+    document.getElementById('btn-vote-down').disabled = true;
+});
+
+// Vote started - show modal
+socket.on('vote-started', (data) => {
+    const modal = document.getElementById('vote-modal');
+    document.getElementById('vote-target-name').textContent = data.targetName;
+    document.getElementById('vote-up-count').textContent = '0';
+    document.getElementById('vote-down-count').textContent = '0';
+    document.getElementById('btn-vote-up').disabled = false;
+    document.getElementById('btn-vote-down').disabled = false;
+    modal.classList.remove('hidden');
+
+    // Start countdown timer
+    let timeLeft = 20;
+    document.getElementById('vote-timer').textContent = timeLeft;
+    if (voteTimerInterval) clearInterval(voteTimerInterval);
+    voteTimerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('vote-timer').textContent = timeLeft;
+        if (timeLeft <= 0) clearInterval(voteTimerInterval);
+    }, 1000);
+});
+
+// Vote update - update counts
+socket.on('vote-update', (data) => {
+    document.getElementById('vote-up-count').textContent = data.upVotes || 0;
+    document.getElementById('vote-down-count').textContent = data.downVotes || 0;
+});
+
+// Vote ended - hide modal
+socket.on('vote-ended', () => {
+    document.getElementById('vote-modal').classList.add('hidden');
+    if (voteTimerInterval) clearInterval(voteTimerInterval);
+});
+
 // --- SOCKET ACTIONS ---
 function joinGame() {
     socket.emit('join-game', {
@@ -771,15 +820,29 @@ function renderPlayerList() {
         if (p.hasGuessed) div.classList.add('has-guessed');
 
         const isDrawer = gameState.drawerId === p.id;
+        const isMe = p.id === socket.id;
+        const showVoteIcon = gameState.screen === 'game' && !isMe;
+
         div.innerHTML = `
             <div class="player-avatar-small">${p.avatar?.emoji || '😀'}</div>
             <div class="player-info">
                 <span class="player-name">${escapeHtml(p.name)} ${p.isHost ? '👑' : ''} ${isDrawer ? '✏️' : ''}</span>
                 <span class="player-score">Points: ${p.score || 0}</span>
             </div>
+            ${showVoteIcon ? `<button class="btn-vote-player" data-player-id="${p.id}" title="Start vote against ${escapeHtml(p.name)}">🗳️</button>` : ''}
         `;
         list.appendChild(div);
     });
+
+    // Add click handlers for vote icons
+    if (gameState.screen === 'game') {
+        list.querySelectorAll('.btn-vote-player').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.playerId;
+                socket.emit('start-vote', { targetId });
+            });
+        });
+    }
 }
 
 function escapeHtml(text) {

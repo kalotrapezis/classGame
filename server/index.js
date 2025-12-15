@@ -104,7 +104,10 @@ let room = {
     wordOptions: [],
     revealedIndices: [],
     hintTimeouts: [],
-    canvasActions: []
+    canvasActions: [],
+    activeVote: null,  // { targetId, targetName, initiatorId, votes: {playerId: 'up'|'down'}, timeout }
+    playersWhoInitiatedVote: new Set(),  // Track who initiated vote this round
+    lastRoundPoints: {}
   }
 };
 
@@ -278,8 +281,12 @@ io.on('connection', (socket) => {
         const pointsEarned = Math.max(100, Math.floor(2000 * ratio));
 
         player.score += pointsEarned;
+        room.game.lastRoundPoints[player.id] = pointsEarned;
         const drawer = room.players[room.game.currentDrawerIndex];
-        if (drawer) drawer.score += Math.floor(pointsEarned * 0.5);
+        if (drawer) {
+          drawer.score += Math.floor(pointsEarned * 0.5);
+          room.game.lastRoundPoints[drawer.id] = (room.game.lastRoundPoints[drawer.id] || 0) + Math.floor(pointsEarned * 0.5);
+        }
 
         io.to('game-room').emit('chat-message', {
           sender: player.name,
@@ -377,6 +384,82 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback();
   });
 
+  // Start a vote against a player
+  socket.on('start-vote', ({ targetId }) => {
+    // Must be in game
+    if (room.status !== 'drawing' && room.status !== 'selecting') return;
+
+    const initiator = room.players.find(p => p.id === socket.id);
+    const target = room.players.find(p => p.id === targetId);
+    if (!initiator || !target) return;
+    if (targetId === socket.id) return; // Can't vote against yourself
+
+    // Check if there's already an active vote
+    if (room.game.activeVote) {
+      socket.emit('chat-message', { content: 'A vote is already in progress!', system: true });
+      return;
+    }
+
+    // Check if this player already initiated a vote this round
+    if (room.game.playersWhoInitiatedVote.has(socket.id)) {
+      socket.emit('chat-message', { content: 'You already initiated a vote this round!', system: true });
+      return;
+    }
+
+    // Mark this player as having initiated a vote
+    room.game.playersWhoInitiatedVote.add(socket.id);
+
+    // Start the vote session
+    room.game.activeVote = {
+      targetId,
+      targetName: target.name,
+      initiatorId: socket.id,
+      initiatorName: initiator.name,
+      votes: {}  // playerId -> 'up' | 'down'
+    };
+
+    io.to('game-room').emit('vote-started', {
+      targetId,
+      targetName: target.name,
+      initiatorName: initiator.name
+    });
+
+    io.to('game-room').emit('chat-message', {
+      content: `🗳️ ${initiator.name} started a vote against ${target.name}! Vote now (20 sec)`,
+      system: true
+    });
+
+    // Set 20 second timeout
+    room.game.activeVote.timeout = setTimeout(() => {
+      processVoteResults();
+    }, 20000);
+  });
+
+  // Cast a vote
+  socket.on('cast-vote', ({ vote }) => {
+    if (!room.game.activeVote) return;
+
+    const voter = room.players.find(p => p.id === socket.id);
+    if (!voter) return;
+
+    // Can't vote if you're the target
+    if (socket.id === room.game.activeVote.targetId) return;
+
+    // Record the vote (overwrite if already voted)
+    room.game.activeVote.votes[socket.id] = vote; // 'up' or 'down'
+
+    // Count votes
+    const votes = Object.values(room.game.activeVote.votes);
+    const upVotes = votes.filter(v => v === 'up').length;
+    const downVotes = votes.filter(v => v === 'down').length;
+
+    io.to('game-room').emit('vote-update', {
+      upVotes,
+      downVotes,
+      totalVoters: room.players.length - 1
+    });
+  });
+
   socket.on('disconnect', () => {
     const playerIndex = room.players.findIndex(p => p.id === socket.id);
     if (playerIndex !== -1) {
@@ -463,9 +546,63 @@ function startGame() {
   startTurn();
 }
 
+// Process vote results when timer expires
+function processVoteResults() {
+  if (!room.game.activeVote) return;
+
+  const vote = room.game.activeVote;
+  const votes = Object.values(vote.votes);
+  const upVotes = votes.filter(v => v === 'up').length;
+  const downVotes = votes.filter(v => v === 'down').length;
+
+  const target = room.players.find(p => p.id === vote.targetId);
+  const initiator = room.players.find(p => p.id === vote.initiatorId);
+
+  if (votes.length === 0) {
+    // No votes cast
+    io.to('game-room').emit('chat-message', {
+      content: `🗳️ Vote ended - no votes were cast!`,
+      system: true
+    });
+  } else if (downVotes > upVotes) {
+    // Majority voted down - target loses 4000 points
+    if (target) {
+      const pointsLost = Math.min(4000, target.score);
+      target.score = Math.max(0, target.score - 4000);
+      io.to('game-room').emit('chat-message', {
+        content: `⚠️ Vote passed! ${target.name} loses ${pointsLost} points! (${downVotes} 👎 vs ${upVotes} 👍)`,
+        system: true
+      });
+    }
+  } else {
+    // Majority voted up or tie - initiator loses 1000 points for failed vote
+    if (initiator) {
+      const pointsLost = Math.min(1000, initiator.score);
+      initiator.score = Math.max(0, initiator.score - 1000);
+      io.to('game-room').emit('chat-message', {
+        content: `⚠️ Vote failed! ${initiator.name} loses ${pointsLost} points for unsuccessful vote! (${downVotes} 👎 vs ${upVotes} 👍)`,
+        system: true
+      });
+    }
+  }
+
+  // Clear active vote and update players
+  room.game.activeVote = null;
+  io.to('game-room').emit('vote-ended');
+  io.to('game-room').emit('player-update', room.players);
+}
+
 function startTurn() {
   room.players.forEach(p => p.hasGuessed = false);
   room.game.currentDrawerIndex++;
+
+  // Reset vote state for new turn
+  if (room.game.activeVote && room.game.activeVote.timeout) {
+    clearTimeout(room.game.activeVote.timeout);
+  }
+  room.game.activeVote = null;
+  room.game.playersWhoInitiatedVote = new Set();
+  room.game.lastRoundPoints = {};
 
   if (room.game.currentDrawerIndex >= room.players.length) {
     room.game.currentRound++;
@@ -546,6 +683,7 @@ function revealHint() {
   }
 
   const drawer = room.players[room.game.currentDrawerIndex];
+  if (!drawer) return;
   room.players.forEach(p => {
     if (p.id !== drawer.id) io.to(p.id).emit('hint-update', hintDisplay.trim());
   });
