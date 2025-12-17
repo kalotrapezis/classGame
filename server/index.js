@@ -842,6 +842,7 @@ function endGame() {
   room.game.timer = 0;
   room.game.wordOptions = [];
   room.game.revealedIndices = [];
+  room.game.playerVoteCounts = {};  // Reset vote counts for new game
 
   room.players.forEach(p => {
     p.score = 0;

@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v1.1.1 (2025-12-17)
+
+### Bug Fixes
+- **Vote Limit Reset**: The 3-vote limit per player now correctly resets at the end of each game, so players get fresh votes for every new game.
+
+---
+
 ## v1.1.0 (2025-12-17)
 
 ### UI Improvements
