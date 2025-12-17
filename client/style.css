@@ -877,3 +877,43 @@ button:active {
   font-size: 0.9rem;
   color: #888;
 }
+
+/* Player rank numbers */
+.player-rank {
+  font-weight: bold;
+  min-width: 24px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Light green tint for players who have guessed correctly */
+.player-item.has-guessed {
+  background: #d4edda;
+  border: 1px solid #28a745;
+}
+
+/* Disabled vote buttons during cooldown or active vote */
+.btn-vote-player.vote-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Bottom padding to allow scrolling past toolbar on small screens */
+.game-canvas-container {
+  padding-bottom: 60px;
+}
+
+/* Ensure game screen can scroll to show all toolbar */
+#screen-game {
+  overflow-y: auto;
+  padding-bottom: 80px;
+}
+
+/* Force restart button - only visible in Electron for host */
+.btn-restart {
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  margin-left: 10px;
+}

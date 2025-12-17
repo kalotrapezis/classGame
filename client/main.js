@@ -14,6 +14,9 @@ const socket = io(serverUrl, {
 
 console.log(`Connecting to ClassGame server at: ${serverUrl}`);
 
+// Detect if running in Electron app (vs browser)
+const isElectronApp = navigator.userAgent.toLowerCase().includes('electron');
+
 // --- CONNECTION STATUS HANDLING ---
 let wasConnected = false;
 let reconnectOverlay = null;
@@ -509,6 +512,8 @@ canvas.addEventListener('touchend', stopDrawing);
 
 // --- VOTING SYSTEM ---
 let voteTimerInterval = null;
+let votingDisabled = false;  // Track if vote buttons should be disabled
+let myVotingCapabilityRemoved = false;  // Track if this player lost voting privilege
 
 // Vote modal button handlers
 document.getElementById('btn-vote-up').addEventListener('click', () => {
@@ -555,6 +560,37 @@ socket.on('vote-ended', () => {
     document.getElementById('vote-modal').classList.add('hidden');
     if (voteTimerInterval) clearInterval(voteTimerInterval);
 });
+
+// Vote buttons state (disabled during active vote or cooldown)
+socket.on('vote-buttons-state', (data) => {
+    votingDisabled = data.disabled;
+    renderPlayerList();  // Re-render to update button states
+});
+
+// Vote capability removed for this player
+socket.on('vote-capability-removed', () => {
+    myVotingCapabilityRemoved = true;
+    renderPlayerList();
+});
+
+// Force restart - return to lobby (triggered by host)
+socket.on('force-restart', () => {
+    console.log('Force restart received - returning to lobby');
+    showScreen('lobby');
+    // Reset client-side voting state
+    votingDisabled = false;
+    myVotingCapabilityRemoved = false;
+});
+
+// Force restart button handler (Electron app only)
+const btnForceRestart = document.getElementById('btn-force-restart');
+if (btnForceRestart) {
+    btnForceRestart.addEventListener('click', () => {
+        if (confirm('Restart game? All players will return to lobby. Scores are preserved.')) {
+            socket.emit('force-restart-game');
+        }
+    });
+}
 
 // --- SOCKET ACTIONS ---
 function joinGame() {
@@ -697,7 +733,14 @@ socket.on('chat-message', (msg) => {
     }
 });
 
-socket.on('game-started', () => showScreen('game'));
+socket.on('game-started', () => {
+    showScreen('game');
+    // Show restart button only for host in Electron app
+    const btnRestart = document.getElementById('btn-force-restart');
+    if (btnRestart && isElectronApp && gameState.isHost) {
+        btnRestart.classList.remove('hidden');
+    }
+});
 
 socket.on('timer-update', (time) => {
     document.getElementById('timer').textContent = time;
@@ -812,6 +855,11 @@ function renderPlayerList() {
     const list = gameState.screen === 'lobby' ? lobbyPlayerList : gamePlayerList;
     lobbyPlayerCount.textContent = gameState.players.length;
 
+    // Sort players by score for ranking (in game screen)
+    const sortedForRank = [...gameState.players].sort((a, b) => b.score - a.score);
+    const rankMap = new Map();
+    sortedForRank.forEach((p, idx) => rankMap.set(p.id, idx + 1));
+
     list.innerHTML = '';
     gameState.players.forEach(p => {
         const div = document.createElement('div');
@@ -821,22 +869,27 @@ function renderPlayerList() {
 
         const isDrawer = gameState.drawerId === p.id;
         const isMe = p.id === socket.id;
-        const showVoteIcon = gameState.screen === 'game' && !isMe;
+        const rank = rankMap.get(p.id) || 0;
+
+        // Show vote icon only in game, not for self, not if voting disabled or capability removed
+        const showVoteIcon = gameState.screen === 'game' && !isMe && !myVotingCapabilityRemoved;
+        const voteButtonDisabled = votingDisabled ? 'vote-disabled' : '';
 
         div.innerHTML = `
+            <span class="player-rank">${gameState.screen === 'game' ? rank + '.' : ''}</span>
             <div class="player-avatar-small">${p.avatar?.emoji || '😀'}</div>
             <div class="player-info">
                 <span class="player-name">${escapeHtml(p.name)} ${p.isHost ? '👑' : ''} ${isDrawer ? '✏️' : ''}</span>
                 <span class="player-score">Points: ${p.score || 0}</span>
             </div>
-            ${showVoteIcon ? `<button class="btn-vote-player" data-player-id="${p.id}" title="Start vote against ${escapeHtml(p.name)}">🗳️</button>` : ''}
+            ${showVoteIcon ? `<button class="btn-vote-player ${voteButtonDisabled}" data-player-id="${p.id}" title="Start vote against ${escapeHtml(p.name)}">🗳️</button>` : ''}
         `;
         list.appendChild(div);
     });
 
-    // Add click handlers for vote icons
+    // Add click handlers for vote icons (only if not disabled)
     if (gameState.screen === 'game') {
-        list.querySelectorAll('.btn-vote-player').forEach(btn => {
+        list.querySelectorAll('.btn-vote-player:not(.vote-disabled)').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.playerId;
                 socket.emit('start-vote', { targetId });

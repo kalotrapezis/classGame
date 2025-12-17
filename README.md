@@ -1,4 +1,4 @@
-# ClassGame (v1.0.0)
+# ClassGame (v1.1.0)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 
@@ -17,6 +17,7 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 - 🇬🇷 **Greek Language** - Built-in support for Greek with 98 words and accent-insensitive matching
 - ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), word count (3-8), and hints (2-5)
 - 📱 **Responsive** - Works on tablets and smaller screens with proper scrolling
+- 🔄 **Host Restart** - Host can restart the game mid-play (returns everyone to lobby, keeps scores)
 
 ## Quick Start
 
@@ -66,6 +67,7 @@ npm start
    - Guessers earn 2000 points (maximum) for quick guesses, down to 100 points minimum
    - Drawer earns 50% of points from each correct guess
 6. **Reconnect**: If you disconnect, rejoin with the same name to get your score back!
+7. **Restart (Host Only)**: Click the "🔄 Restart" button in the header to return everyone to the lobby while keeping scores
 
 ## Game Settings (Host Only)
 

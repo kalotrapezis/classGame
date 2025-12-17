@@ -107,7 +107,11 @@ let room = {
     canvasActions: [],
     activeVote: null,  // { targetId, targetName, initiatorId, votes: {playerId: 'up'|'down'}, timeout }
     playersWhoInitiatedVote: new Set(),  // Track who initiated vote this round
-    lastRoundPoints: {}
+    lastRoundPoints: {},
+    lastVoteEndTime: 0,  // Timestamp when last vote ended (for cooldown)
+    playerVoteCounts: {},  // { playerId: totalVotesInitiated } - remove voting after 3
+    voteCooldownActive: false,  // Track if cooldown is active
+    playersWhoHaveDrawnThisRound: new Set()  // Track who has drawn in current round
   }
 };
 
@@ -384,6 +388,66 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback();
   });
 
+  // Force restart game - host only - preserves player data but resets all game state
+  socket.on('force-restart-game', () => {
+    // Only host can restart
+    if (room.hostId !== socket.id) {
+      socket.emit('chat-message', { content: 'Only the host can restart the game!', system: true });
+      return;
+    }
+
+    console.log('Host triggered force restart - preserving player data');
+
+    // Clear all timers
+    if (room.game.interval) clearInterval(room.game.interval);
+    if (room.game.hintTimeouts) room.game.hintTimeouts.forEach(t => clearTimeout(t));
+    if (room.game.activeVote && room.game.activeVote.timeout) {
+      clearTimeout(room.game.activeVote.timeout);
+    }
+
+    // Preserve player data but reset their game state
+    const preservedPlayers = room.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      avatar: p.avatar,
+      score: p.score,  // Keep scores!
+      isHost: p.isHost,
+      hasGuessed: false
+    }));
+
+    // Reset game state completely
+    room.status = 'lobby';
+    room.players = preservedPlayers;
+    room.game = {
+      currentRound: 0,
+      currentDrawerIndex: -1,
+      currentWord: null,
+      timer: 0,
+      interval: null,
+      wordOptions: [],
+      revealedIndices: [],
+      hintTimeouts: [],
+      canvasActions: [],
+      activeVote: null,
+      playersWhoInitiatedVote: new Set(),
+      lastRoundPoints: {},
+      lastVoteEndTime: 0,
+      playerVoteCounts: {},  // Reset vote counts on restart
+      voteCooldownActive: false,
+      playersWhoHaveDrawnThisRound: new Set()
+    };
+
+    // Notify all clients to return to lobby
+    io.to('game-room').emit('force-restart');
+    io.to('game-room').emit('player-update', room.players);
+    io.to('game-room').emit('chat-message', {
+      content: '🔄 Game restarted by host! Returning to lobby.',
+      system: true
+    });
+
+    console.log('Game force restarted - players preserved:', preservedPlayers.map(p => p.name));
+  });
+
   // Start a vote against a player
   socket.on('start-vote', ({ targetId }) => {
     // Must be in game
@@ -400,13 +464,29 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Check if vote cooldown is active (5 seconds after last vote ended)
+    if (room.game.voteCooldownActive) {
+      socket.emit('chat-message', { content: 'Please wait - vote cooldown active!', system: true });
+      return;
+    }
+
     // Check if this player already initiated a vote this round
     if (room.game.playersWhoInitiatedVote.has(socket.id)) {
       socket.emit('chat-message', { content: 'You already initiated a vote this round!', system: true });
       return;
     }
 
-    // Mark this player as having initiated a vote
+    // Check if this player has exceeded 3 total votes (remove voting capability)
+    const currentVoteCount = room.game.playerVoteCounts[socket.id] || 0;
+    if (currentVoteCount >= 3) {
+      socket.emit('chat-message', { content: 'You have lost voting privileges (3 votes used)!', system: true });
+      return;
+    }
+
+    // Increment vote count for this player
+    room.game.playerVoteCounts[socket.id] = currentVoteCount + 1;
+
+    // Mark this player as having initiated a vote this round
     room.game.playersWhoInitiatedVote.add(socket.id);
 
     // Start the vote session
@@ -418,6 +498,9 @@ io.on('connection', (socket) => {
       votes: {}  // playerId -> 'up' | 'down'
     };
 
+    // Notify clients that voting is now disabled (active vote)
+    io.to('game-room').emit('vote-buttons-state', { disabled: true, reason: 'active' });
+
     io.to('game-room').emit('vote-started', {
       targetId,
       targetName: target.name,
@@ -428,6 +511,12 @@ io.on('connection', (socket) => {
       content: `🗳️ ${initiator.name} started a vote against ${target.name}! Vote now (20 sec)`,
       system: true
     });
+
+    // Check if initiator has hit 3 votes - notify them
+    if (room.game.playerVoteCounts[socket.id] >= 3) {
+      socket.emit('vote-capability-removed');
+      socket.emit('chat-message', { content: '⚠️ You have used all 3 votes and can no longer initiate votes.', system: true });
+    }
 
     // Set 20 second timeout
     room.game.activeVote.timeout = setTimeout(() => {
@@ -590,11 +679,20 @@ function processVoteResults() {
   room.game.activeVote = null;
   io.to('game-room').emit('vote-ended');
   io.to('game-room').emit('player-update', room.players);
+
+  // Start 5 second cooldown before next vote can be initiated
+  room.game.voteCooldownActive = true;
+  room.game.lastVoteEndTime = Date.now();
+  io.to('game-room').emit('vote-buttons-state', { disabled: true, reason: 'cooldown' });
+
+  setTimeout(() => {
+    room.game.voteCooldownActive = false;
+    io.to('game-room').emit('vote-buttons-state', { disabled: false });
+  }, 5000);
 }
 
 function startTurn() {
   room.players.forEach(p => p.hasGuessed = false);
-  room.game.currentDrawerIndex++;
 
   // Reset vote state for new turn
   if (room.game.activeVote && room.game.activeVote.timeout) {
@@ -604,9 +702,33 @@ function startTurn() {
   room.game.playersWhoInitiatedVote = new Set();
   room.game.lastRoundPoints = {};
 
-  if (room.game.currentDrawerIndex >= room.players.length) {
+  // Find next player who hasn't drawn this round
+  let foundDrawer = false;
+  let checkedCount = 0;
+
+  while (!foundDrawer && checkedCount < room.players.length) {
+    room.game.currentDrawerIndex++;
+
+    if (room.game.currentDrawerIndex >= room.players.length) {
+      room.game.currentDrawerIndex = 0;
+    }
+
+    const potentialDrawer = room.players[room.game.currentDrawerIndex];
+
+    // Check if this player has already drawn this round
+    if (!room.game.playersWhoHaveDrawnThisRound.has(potentialDrawer.id)) {
+      foundDrawer = true;
+    }
+
+    checkedCount++;
+  }
+
+  // If everyone has drawn, start new round
+  if (!foundDrawer || room.game.playersWhoHaveDrawnThisRound.size >= room.players.length) {
     room.game.currentRound++;
+    room.game.playersWhoHaveDrawnThisRound = new Set();
     room.game.currentDrawerIndex = 0;
+
     if (room.game.currentRound > room.settings.rounds) {
       endGame();
       return;
@@ -614,6 +736,10 @@ function startTurn() {
   }
 
   const drawer = room.players[room.game.currentDrawerIndex];
+
+  // Mark this player as having drawn this round
+  room.game.playersWhoHaveDrawnThisRound.add(drawer.id);
+
   room.status = 'selecting';
   room.game.wordOptions = getWords(room.settings.wordCount || 3, room.settings);
 

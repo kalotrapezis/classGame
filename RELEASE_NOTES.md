@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v1.1.0 (2025-12-17)
+
+### UI Improvements
+- **Restart Button Label**: The host's restart button now displays "🔄 Restart" with clear text instead of just an icon, making it more user-friendly
+
+---
+
 ## v1.0.0 (2025-12-15) 🎉
 
 ### Major New Feature: Voting System 🗳️
