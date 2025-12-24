@@ -97,7 +97,7 @@ let room = {
   players: [],
   game: {
     currentRound: 0,
-    currentDrawerIndex: -1,
+    currentDrawerId: null,
     currentWord: null,
     timer: 0,
     interval: null,
@@ -186,6 +186,14 @@ io.on('connection', (socket) => {
 
   // --- JOIN GAME (single room, no room ID needed) ---
   socket.on('join-game', ({ userName, avatar }, callback) => {
+    // Remove any existing player with the same socket.id (handles name change without disconnect)
+    const existingIndex = room.players.findIndex(p => p.id === socket.id);
+    if (existingIndex !== -1) {
+      const existingPlayer = room.players[existingIndex];
+      console.log(`Removing existing player entry for socket ${socket.id} (was: ${existingPlayer.name})`);
+      room.players.splice(existingIndex, 1);
+    }
+
     // Check max players
     if (room.players.length >= MAX_PLAYERS) {
       return callback({ success: false, message: `Room is full (max ${MAX_PLAYERS} players)` });
@@ -226,7 +234,7 @@ io.on('connection', (socket) => {
 
     // Sync late joiner
     if (isLateJoiner) {
-      const drawer = room.players[room.game.currentDrawerIndex];
+      const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
       socket.emit('game-sync', {
         status: room.status,
         round: room.game.currentRound,
@@ -259,7 +267,7 @@ io.on('connection', (socket) => {
 
     // GUESSING LOGIC
     if (room.status === 'drawing' && room.game.currentWord) {
-      const isDrawer = room.players[room.game.currentDrawerIndex].id === socket.id;
+      const isDrawer = room.game.currentDrawerId === socket.id;
 
       // Use difficulty setting for comparison
       const isHardMode = room.settings.difficulty === 'hard';
@@ -286,7 +294,7 @@ io.on('connection', (socket) => {
 
         player.score += pointsEarned;
         room.game.lastRoundPoints[player.id] = pointsEarned;
-        const drawer = room.players[room.game.currentDrawerIndex];
+        const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
         if (drawer) {
           drawer.score += Math.floor(pointsEarned * 0.5);
           room.game.lastRoundPoints[drawer.id] = (room.game.lastRoundPoints[drawer.id] || 0) + Math.floor(pointsEarned * 0.5);
@@ -301,7 +309,7 @@ io.on('connection', (socket) => {
 
         io.to('game-room').emit('player-update', room.players);
 
-        const guessers = room.players.filter(p => p.id !== room.players[room.game.currentDrawerIndex].id);
+        const guessers = room.players.filter(p => p.id !== room.game.currentDrawerId);
         if (guessers.every(p => p.hasGuessed)) endTurn();
         return;
       }
@@ -330,8 +338,7 @@ io.on('connection', (socket) => {
 
   socket.on('select-word', ({ word }) => {
     if (room.status !== 'selecting') return;
-    const drawer = room.players[room.game.currentDrawerIndex];
-    if (drawer.id !== socket.id) return;
+    if (room.game.currentDrawerId !== socket.id) return;
     startDrawingPhase(word);
   });
 
@@ -420,7 +427,7 @@ io.on('connection', (socket) => {
     room.players = preservedPlayers;
     room.game = {
       currentRound: 0,
-      currentDrawerIndex: -1,
+      currentDrawerId: null,
       currentWord: null,
       timer: 0,
       interval: null,
@@ -553,6 +560,8 @@ io.on('connection', (socket) => {
     const playerIndex = room.players.findIndex(p => p.id === socket.id);
     if (playerIndex !== -1) {
       const player = room.players[playerIndex];
+      const wasDrawer = room.game.currentDrawerId === socket.id;
+      const wasInActiveRound = room.status === 'drawing' || room.status === 'selecting';
 
       // Save score for potential reconnection (only if they had points)
       if (player.score > 0) {
@@ -588,6 +597,36 @@ io.on('connection', (socket) => {
         console.log('All players left. Room reset.');
       } else {
         io.to('game-room').emit('player-update', room.players);
+
+        // If the drawer left during an active round, end turn and start new one
+        if (wasDrawer && wasInActiveRound && room.players.length >= 2) {
+          console.log('Drawer left during active round - skipping to next turn');
+          io.to('game-room').emit('chat-message', {
+            content: '✏️ Drawer left! Skipping to next turn...',
+            system: true
+          });
+
+          // Clear current turn state
+          if (room.game.interval) clearInterval(room.game.interval);
+          if (room.game.hintTimeouts) room.game.hintTimeouts.forEach(t => clearTimeout(t));
+          room.game.hintTimeouts = [];
+          room.game.currentWord = null;
+          room.game.canvasActions = [];
+
+          // Emit turn end with no word (since drawer left)
+          io.to('game-room').emit('turn-end', { word: '(drawer left)' });
+
+          // Start next turn after brief delay
+          setTimeout(() => {
+            if (room.players.length >= 2) {
+              startTurn();
+            }
+          }, 3000);
+        } else if (wasDrawer && wasInActiveRound && room.players.length < 2) {
+          // Not enough players to continue
+          console.log('Drawer left and not enough players - ending game');
+          endGame();
+        }
       }
     }
   });
@@ -615,7 +654,7 @@ function resetRoom() {
     players: [],
     game: {
       currentRound: 0,
-      currentDrawerIndex: -1,
+      currentDrawerId: null,
       currentWord: null,
       timer: 0,
       interval: null,
@@ -630,7 +669,7 @@ function resetRoom() {
 function startGame() {
   room.status = 'playing';
   room.game.currentRound = 1;
-  room.game.currentDrawerIndex = -1;
+  room.game.currentDrawerId = null;
   io.to('game-room').emit('game-started');
   startTurn();
 }
@@ -703,21 +742,28 @@ function startTurn() {
   room.game.lastRoundPoints = {};
 
   // Find next player who hasn't drawn this round
+  // Get current drawer's index (or -1 if none)
+  let currentIndex = room.game.currentDrawerId
+    ? room.players.findIndex(p => p.id === room.game.currentDrawerId)
+    : -1;
+
   let foundDrawer = false;
   let checkedCount = 0;
 
   while (!foundDrawer && checkedCount < room.players.length) {
-    room.game.currentDrawerIndex++;
+    currentIndex++;
 
-    if (room.game.currentDrawerIndex >= room.players.length) {
-      room.game.currentDrawerIndex = 0;
+    if (currentIndex >= room.players.length) {
+      currentIndex = 0;
     }
 
-    const potentialDrawer = room.players[room.game.currentDrawerIndex];
+    const potentialDrawer = room.players[currentIndex];
+    if (!potentialDrawer) break;
 
     // Check if this player has already drawn this round
     if (!room.game.playersWhoHaveDrawnThisRound.has(potentialDrawer.id)) {
       foundDrawer = true;
+      room.game.currentDrawerId = potentialDrawer.id;
     }
 
     checkedCount++;
@@ -727,15 +773,28 @@ function startTurn() {
   if (!foundDrawer || room.game.playersWhoHaveDrawnThisRound.size >= room.players.length) {
     room.game.currentRound++;
     room.game.playersWhoHaveDrawnThisRound = new Set();
-    room.game.currentDrawerIndex = 0;
 
     if (room.game.currentRound > room.settings.rounds) {
       endGame();
       return;
     }
+
+    // Continue rotation: find next player after last drawer
+    let lastDrawerIndex = room.game.currentDrawerId
+      ? room.players.findIndex(p => p.id === room.game.currentDrawerId)
+      : -1;
+
+    let nextIndex = (lastDrawerIndex + 1) % room.players.length;
+    if (room.players.length > 0) {
+      room.game.currentDrawerId = room.players[nextIndex].id;
+    }
   }
 
-  const drawer = room.players[room.game.currentDrawerIndex];
+  const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
+  if (!drawer) {
+    console.error('No drawer found!');
+    return;
+  }
 
   // Mark this player as having drawn this round
   room.game.playersWhoHaveDrawnThisRound.add(drawer.id);
@@ -771,8 +830,10 @@ function startDrawingPhase(word) {
     drawTime: room.settings.drawTime
   });
 
-  const drawer = room.players[room.game.currentDrawerIndex];
-  io.to(drawer.id).emit('your-word', word);
+  const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
+  if (drawer) {
+    io.to(drawer.id).emit('your-word', word);
+  }
 
   const numHints = room.settings.hints || 2;
   const drawTime = room.settings.drawTime;
@@ -808,7 +869,7 @@ function revealHint() {
     else hintDisplay += '_ ';
   }
 
-  const drawer = room.players[room.game.currentDrawerIndex];
+  const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
   if (!drawer) return;
   room.players.forEach(p => {
     if (p.id !== drawer.id) io.to(p.id).emit('hint-update', hintDisplay.trim());
@@ -837,7 +898,7 @@ function endGame() {
   // Reset to lobby
   room.status = 'lobby';
   room.game.currentRound = 0;
-  room.game.currentDrawerIndex = -1;
+  room.game.currentDrawerId = null;
   room.game.currentWord = null;
   room.game.timer = 0;
   room.game.wordOptions = [];

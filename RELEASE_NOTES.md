@@ -1,5 +1,15 @@
 # ClassGame - Release Notes
 
+## v1.2.0 (2025-12-25) 🎄
+
+### Bug Fixes
+- **Ghost Players Fix**: Fixed bug where changing name and rejoining would leave a "ghost" player entry that couldn't be removed
+- **Drawing Order Sync**: Fixed desync where the wrong player would be shown as drawer due to array index shifting when players join/leave
+- **Drawer Disconnect Handling**: When the drawer leaves mid-round, the turn now ends immediately and moves to the next player (with a 3 second delay)
+- **Drawer Rotation Fix**: Fixed bug where the same player would draw again at the start of a new round instead of rotating to the next player
+
+---
+
 ## v1.1.1 (2025-12-17)
 
 ### Bug Fixes
