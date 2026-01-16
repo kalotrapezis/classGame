@@ -860,8 +860,11 @@ function renderPlayerList() {
     const rankMap = new Map();
     sortedForRank.forEach((p, idx) => rankMap.set(p.id, idx + 1));
 
+    // Sort the list for display as well (if in game)
+    const displayList = gameState.screen === 'game' ? sortedForRank : gameState.players;
+
     list.innerHTML = '';
-    gameState.players.forEach(p => {
+    displayList.forEach(p => {
         const div = document.createElement('div');
         div.className = 'player-item';
         if (p.id === socket.id) div.classList.add('is-me');

@@ -1,5 +1,13 @@
 # ClassGame - Release Notes
 
+## v1.2.1 (2026-01-16)
+### Bug Fixes
+- **Player Sorting Fix**: Player list now sorts by score (descending) to show leaders at the top.
+- **Browser Drawing Tools**: Fixed CSS layout issue where drawing toolbar was hidden or pushed off-screen in web browsers.
+- **Linux System Tray**: Fixed missing tray icon on Linux and improved app closing behavior.
+
+---
+
 ## v1.2.0 (2025-12-25) 🎄
 
 ### Bug Fixes

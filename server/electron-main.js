@@ -49,7 +49,13 @@ function createWindow() {
 
 function createTray() {
     try {
-        const iconPath = path.join(__dirname, 'assets', 'icon.ico');
+        let iconPath;
+        if (process.platform === 'linux') {
+            iconPath = path.join(__dirname, 'assets', 'tray.png');
+        } else {
+            iconPath = path.join(__dirname, 'assets', 'icon.ico');
+        }
+
         const icon = require('electron').nativeImage.createFromPath(iconPath);
 
         if (icon.isEmpty()) {
@@ -158,7 +164,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
     // Do not quit when all windows are closed, keep running in tray
+    // Do not quit when all windows are closed, keep running in tray
+    // logic is handled in mainWindow.on('close') for minimizing
     if (process.platform !== 'darwin') {
-        // app.quit(); 
+        // app.quit(); // We want to stay alive in tray
     }
 });

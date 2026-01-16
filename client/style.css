@@ -413,15 +413,22 @@ button:active {
   display: flex;
   flex-direction: column;
   max-height: 100%;
+  overflow: hidden;
+  /* Ensure content doesn't spill out */
 }
 
 #drawing-canvas {
   width: 100%;
   max-width: 800px;
+  /* aspect-ratio: 4 / 3; -- Removing fixed aspect ratio to allow flexbox to manage height if needed, OR keeping it but allowing shrink */
   aspect-ratio: 4 / 3;
   cursor: crosshair;
   display: block;
   margin: 0 auto;
+  flex-shrink: 1;
+  /* Allow shrinking */
+  min-height: 0;
+  object-fit: contain;
 }
 
 #canvas-overlay {
