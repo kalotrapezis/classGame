@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v1.2.2 (2026-01-21) 📦
+### Build & Distribution
+- **Windows 32-bit Support**: Added official support for Windows 32-bit builds via Zip archive.
+- **Linux AppImage Support**: Fixed AppImage generation by updating build dependencies to be compatible with the latest Electron Forge.
+
+---
+
 ## v1.2.1 (2026-01-16)
 ### Bug Fixes
 - **Player Sorting Fix**: Player list now sorts by score (descending) to show leaders at the top.
