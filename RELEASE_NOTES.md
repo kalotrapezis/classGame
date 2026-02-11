@@ -1,5 +1,15 @@
 # ClassGame - Release Notes
 
+## v2.0.0 (2026-02-11) 🚀
+### Major Features
+- **Expanded Word Lists**: Added over 160 new words across diverse categories like Landscape, Science, Emotions, Mythology, and History for both Greek and English.
+- **Improved Visibility**: Replaced the standard crosshair cursor with a custom SVG cursor that uses black and white strokes, ensuring maximum visibility on any background.
+
+### UI/UX
+- **Toolbox Polish**: Refined the drawing tools and icons for better consistency.
+
+---
+
 ## v1.2.2 (2026-01-21) 📦
 ### Build & Distribution
 - **Windows 32-bit Support**: Added official support for Windows 32-bit builds via Zip archive.

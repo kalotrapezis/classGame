@@ -422,7 +422,7 @@ button:active {
   max-width: 800px;
   /* aspect-ratio: 4 / 3; -- Removing fixed aspect ratio to allow flexbox to manage height if needed, OR keeping it but allowing shrink */
   aspect-ratio: 4 / 3;
-  cursor: crosshair;
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="20" stroke="black" stroke-width="3" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="black" stroke-width="3" stroke-linecap="round"/><line x1="12" y1="4" x2="12" y2="20" stroke="white" stroke-width="1" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="white" stroke-width="1" stroke-linecap="round"></svg>') 12 12, crosshair;
   display: block;
   margin: 0 auto;
   flex-shrink: 1;
@@ -918,9 +918,298 @@ button:active {
 }
 
 /* Force restart button - only visible in Electron for host */
+
 .btn-restart {
   padding: 8px 12px;
   font-size: 1.2rem;
   border-radius: 6px;
   margin-left: 10px;
+}
+
+.third-stand {
+  height: 60px;
+  background: linear-gradient(180deg, #cd7f32, #a0522d);
+}
+
+.first .podium-avatar {
+  border-color: #ffd700;
+}
+
+.second .podium-avatar {
+  border-color: #c0c0c0;
+}
+
+.third .podium-avatar {
+  border-color: #cd7f32;
+}
+
+/* RECONNECT OVERLAY */
+#reconnect-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.reconnect-content {
+  text-align: center;
+  color: white;
+}
+
+.reconnect-content h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.reconnect-content p {
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.reconnect-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  margin: 0 auto 20px auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Player ready status indicator */
+.player-item.not-ready {
+  opacity: 0.5;
+  background: #ffebee;
+  border: 1px dashed #f44336;
+}
+
+.player-item.ready .player-avatar-small::after {
+  content: '✓';
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  background: var(--success-color);
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-avatar-small {
+  position: relative;
+}
+
+/* VOTE SYSTEM */
+.btn-vote-player {
+  padding: 4px 8px;
+  font-size: 1.2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: none;
+}
+
+.btn-vote-player:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.btn-vote-player:active {
+  transform: scale(1);
+}
+
+.vote-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 20px 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  min-width: 280px;
+  text-align: center;
+}
+
+.vote-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.vote-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.vote-buttons button {
+  padding: 10px 20px;
+  font-size: 1.1rem;
+}
+
+.vote-status {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #555;
+}
+
+.vote-timer {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+/* Player rank numbers */
+.player-rank {
+  font-weight: bold;
+  min-width: 24px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Light green tint for players who have guessed correctly */
+.player-item.has-guessed {
+  background: #d4edda;
+  border: 1px solid #28a745;
+}
+
+/* Disabled vote buttons during cooldown or active vote */
+.btn-vote-player.vote-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Bottom padding to allow scrolling past toolbar on small screens */
+.game-canvas-container {
+  padding-bottom: 60px;
+}
+
+/* Ensure game screen can scroll to show all toolbar */
+#screen-game {
+  overflow-y: auto;
+  padding-bottom: 80px;
+}
+
+/* Force restart button - only visible in Electron for host */
+.btn-restart-action {
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  margin-left: 10px;
+}
+
+/* JOIN SCREEN STYLES */
+.join-method {
+  width: 100%;
+  margin-bottom: 20px;
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.join-method h3 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #333;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+}
+
+.hint-text {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.ip-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#ip-prefix {
+  font-family: monospace;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+#input-ip-suffix {
+  width: 80px;
+  padding: 8px;
+  font-size: 1.2rem;
+  text-align: center;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.server-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.server-item:hover {
+  background: #e6f7ff;
+  border-color: #1890ff;
+}
+
+.server-list-placeholder {
+  text-align: center;
+  color: #999;
+  padding: 10px;
+  font-style: italic;
+}
+
+/* Dark Blue Button for Make Game */
+.btn-blue-dark {
+  background-color: #003366;
+  /* Dark Blue */
+  color: white;
+}
+
+.btn-blue-dark:hover {
+  background-color: #002244;
 }

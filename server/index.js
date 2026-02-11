@@ -11,14 +11,24 @@ const TLSConfig = require('./tls-config');
 // Get local IP address
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
+  const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback'];
+  let fallbackIP = null;
+
   for (const name of Object.keys(interfaces)) {
+    const lowerName = name.toLowerCase();
+    const isVirtual = virtualKeywords.some(keyword => lowerName.includes(keyword));
+
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        if (!isVirtual) {
+          return iface.address;
+        } else if (!fallbackIP) {
+          fallbackIP = iface.address;
+        }
       }
     }
   }
-  return 'localhost';
+  return fallbackIP || 'localhost';
 }
 const LOCAL_IP = getLocalIP();
 console.log('Local IP:', LOCAL_IP);
@@ -64,7 +74,24 @@ function normalizeTextHard(str) {
 const WORDS_EN = [
   "apple", "banana", "carrot", "dog", "elephant", "fish", "guitar", "house", "ice cream", "jellyfish",
   "kite", "lion", "moon", "nest", "orange", "penguin", "queen", "rabbit", "sun", "tree",
-  "umbrella", "violin", "watermelon", "xylophone", "yacht", "zebra", "airplane", "ball", "cat", "door"
+  "umbrella", "violin", "watermelon", "xylophone", "yacht", "zebra", "airplane", "ball", "cat", "door",
+  "desk", "blackboard", "sharpener", "compass", "sketchbook", "bicycle", "scooter", "hide and seek", "marbles", "chess",
+  "excursion", "break", "bag", "pencil case", "jump rope", "keyboard", "mouse", "monitor", "printer", "robot",
+  "cable", "usb", "internet", "password", "algorithm", "program", "email", "tablet", "laptop", "microphone",
+  "zeus", "hercules", "centaur", "olympus", "pegasus", "minotaur", "chimera", "poseidon", "athena", "achilles",
+  "trojan horse", "kolokotronis", "bouboulina", "tsarouchi", "foustanela", "banner", "secret school", "karaiskakis", "kanaris", "souli",
+  "mesolongi", "blue bin", "composting", "glass", "paper", "aluminum", "plastic", "batteries", "environment", "ecology",
+  "mercury", "venus", "earth", "mars", "saturn", "uranus", "comet", "asteroid", "pomegranate", "fig",
+  "cherry", "pear", "broccoli", "eggplant", "zucchini", "okra", "moussaka", "pastitsio", "bean soup", "stuffed vegetables",
+  "souvlaki", "strawberry", "tomato", "paris", "london", "rome", "athens", "constantinople", "eiffel tower", "parthenon",
+  "colosseum", "big ben", "pyramides", "great wall of china", "mountain", "waterfall", "forest", "island", "volcano", "ocean",
+  "thunder", "lightning", "rainbow", "hurricane", "blizzard", "foggy", "greenhouse", "pollution", "solar power", "wildlife",
+  "habitat", "software", "database", "wireless", "camera", "experiment", "microscope", "gravity", "oxygen", "molecule",
+  "telescope", "astronaut", "galaxy", "satellite", "orbit", "spaceship", "brave", "creative", "honest", "patient",
+  "generous", "grumpy", "scientist", "architect", "journalist", "pilot", "engineer", "musician", "excited", "confused",
+  "nervous", "exhausted", "proud", "helicopter", "submarine", "railway", "backpack", "map", "passport", "destination",
+  "souvenir", "microwave", "wardrobe", "mirror", "balcony", "fireplace", "century", "calendar", "memory", "dream",
+  "knowledge", "adventure"
 ];
 
 const WORDS_GR = [
@@ -77,7 +104,23 @@ const WORDS_GR = [
   "φλιτζάνι", "γυαλί", "λουλούδι", "γρασίδι", "πέτρα", "δρόμος", "γέφυρα", "βάρκα", "πλοίο", "αεροπλάνο",
   "τρένο", "λεωφορείο", "ασανσέρ", "σκάλα", "χαρτί", "μολύβι", "σβήστρα", "κανόνας", "σχολείο", "δάσκαλος",
   "μαθητής", "γιατρός", "αστυνόμος", "πυροσβέστης", "μάγειρας", "μουσική", "τραγούδι", "χορός", "ύπνος", "ξύπνιος",
-  "τρέξιμο", "περπάτημα", "γέλιο", "κλάμα", "φιλί", "αγκαλιά", "δώρο", "χρήματα"
+  "τρέξιμο", "περπάτημα", "γέλιο", "κλάμα", "φιλί", "αγκαλιά", "δώρο", "χρήματα",
+  "θρανίο", "μαυροπίνακας", "ξύστρα", "διαβήτης", "μπλοκ ζωγραφικής", "πατίνι", "κρυφτό", "βόλοι", "σκάκι", "εκδρομή",
+  "διάλειμμα", "τσάντα", "κασετίνα", "σχοινάκι", "πληκτρολόγιο", "ποντίκι", "οθόνη", "εκτυπωτής", "ρομπότ", "καλώδιο",
+  "usb", "διαδίκτυο", "κωδικός", "αλγόριθμος", "πρόγραμμα", "email", "tablet", "laptop", "μικρόφωνο", "δίας",
+  "ηρακλής", "κένταυρος", "όλυμπος", "πήγασος", "μινώταυρος", "χίμαιρα", "ποσειδώνας", "αθηνά", "αχιλλέας", "δούρειος ίππος",
+  "κολοκοτρώνης", "μπουμπουλίνα", "τσαρούχι", "φουστανέλα", "λάβαρο", "κρυφό σχολειό", "καραϊσκάκης", "κανάρης", "σούλι", "μεσολόγγι",
+  "μπλε κάδος", "κομποστοποίηση", "αλουμίνιο", "πλαστικό", "μπαταρίες", "περιβάλλον", "οικολογία", "ερμής", "αφροδίτη", "γη",
+  "άρης", "κρόνος", "ουρανός", "κομήτης", "αστεροειδής", "ρόδι", "σύκο", "κεράσι", "καρπούζι", "αχλάδι",
+  "μπρόκολο", "μελιτζάνα", "κολοκύθι", "μπάμια", "μουσακάς", "παστίτσιο", "φασολάδα", "γεμιστά", "σουβλάκι", "φράουλα",
+  "ντομάτα", "παρίσι", "λονδίνο", "ρώμη", "αθήνα", "κωνσταντινούπολη", "πύργος του άιφελ", "παρθενώνας", "κολοσσαίο", "μπιγκ μπεν",
+  "πυραμίδες", "σινικό τείχος", "καταρράκτης", "δάσος", "νησί", "ηφαίστειο", "ωκεανός", "βροντή", "ουράνιο τόξο", "τυφώνας",
+  "χιονοθύελλα", "ομίχλη", "θερμοκήπιο", "μόλυνση", "ηλιακή ενέργεια", "άγρια ζωή", "βιότοπος", "λογισμικό", "βάση δεδομένων", "ασύρματο",
+  "κάμερα", "πείραμα", "μικροσκόπιο", "βαρύτητα", "οξυγόνο", "μόριο", "τηλεσκόπιο", "αστροναύτης", "γαλαξίας", "δορυφόρος",
+  "τροχιά", "διαστημόπλοιο", "γενναίος", "δημιουργικός", "ειλικρινής", "υπομονετικός", "γενναιόδωρος", "γκρινιάρης", "επιστήμονας", "αρχιτέκτονας",
+  "δημοσιογράφος", "πιλότος", "μηχανικός", "μουσικός", "ενθουσιασμένος", "μπερδεμένος", "νευρικός", "εξαντλημένος", "περήφανος", "ελικόπτερο",
+  "υποβρύχιο", "σιδηρόδρομος", "σακίδιο", "πυξίδα", "χάρτης", "διαβατήριο", "προορισμός", "σουβενίρ", "φούρνος μικροκυμάτων", "ντουλάπα",
+  "καθρέφτης", "μπαλκόνι", "τζάκι", "αιώνας", "ημερολόγιο", "μνήμη", "όνειρο", "γνώση", "περιπέτεια"
 ];
 
 // Only ONE room per server instance
@@ -454,6 +497,37 @@ io.on('connection', (socket) => {
 
     console.log('Game force restarted - players preserved:', preservedPlayers.map(p => p.name));
   });
+
+  // --- HOSTING & DISCOVERY ---
+
+  socket.on('start-hosting', () => {
+    console.log(`Socket ${socket.id} started hosting`);
+    networkDiscovery.startBroadcasting();
+    socket.emit('hosting-started', { ip: LOCAL_IP, port: START_PORT });
+  });
+
+  socket.on('stop-hosting', () => {
+    console.log(`Socket ${socket.id} stopped hosting`);
+    networkDiscovery.stopBroadcasting();
+  });
+
+  socket.on('find-servers', () => {
+    console.log(`Socket ${socket.id} searching for servers`);
+
+    // Immediate response with local IP for manual entry reference
+    socket.emit('local-ip-info', { ip: LOCAL_IP });
+
+    const browser = networkDiscovery.findServers(
+      (serverInfo) => socket.emit('server-found', serverInfo),
+      (serverInfo) => socket.emit('server-lost', serverInfo)
+    );
+
+    // Stop searching after 10 seconds to save resources
+    setTimeout(() => {
+      if (browser) browser.stop();
+    }, 10000);
+  });
+
 
   // Start a vote against a player
   socket.on('start-vote', ({ targetId }) => {
@@ -929,7 +1003,7 @@ function startTimer(seconds, onComplete) {
   }, 1000);
 }
 
-const START_PORT = parseInt(process.env.PORT) || 3000;
+const START_PORT = parseInt(process.env.PORT) || 3001;
 
 function startServer(port) {
   server.listen(port, '0.0.0.0', () => {

@@ -1,7 +1,8 @@
 import { io } from "socket.io-client";
 import './style.css';
 
-// Connect to server with robust reconnection settings for WiFi stability
+// Connect to server (initially just to load the app, not necessarily to play)
+// Robust reconnection settings for WiFi stability
 const serverUrl = window.location.origin;
 const socket = io(serverUrl, {
     reconnection: true,
@@ -11,6 +12,13 @@ const socket = io(serverUrl, {
     timeout: 30000,
     autoConnect: true
 });
+
+// Determine role from URL query params (if redirected)
+const urlParams = new URLSearchParams(window.location.search);
+const isRedirectedClient = urlParams.has('client');
+if (isRedirectedClient) {
+    console.log("Client connected via redirection!");
+}
 
 console.log(`Connecting to ClassGame server at: ${serverUrl}`);
 
@@ -103,6 +111,7 @@ let gameState = {
 // --- DOM ELEMENTS ---
 const screens = {
     landing: document.getElementById('screen-landing'),
+    join: document.getElementById('screen-join'),
     lobby: document.getElementById('screen-lobby'),
     game: document.getElementById('screen-game'),
     gameover: document.getElementById('screen-gameover')
@@ -110,9 +119,17 @@ const screens = {
 
 // Landing
 const inputName = document.getElementById('input-name');
-const btnPlay = document.getElementById('btn-play');
+const btnMakeGame = document.getElementById('btn-make-game');
+const btnJoinGame = document.getElementById('btn-join-game');
 const btnRandomAvatar = document.getElementById('btn-random-avatar');
 const avatarPreview = document.getElementById('avatar-preview');
+
+// Join Screen
+const ipPrefixSpan = document.getElementById('ip-prefix');
+const inputIpSuffix = document.getElementById('input-ip-suffix');
+const btnConnectIp = document.getElementById('btn-connect-ip');
+const serverListContainer = document.getElementById('server-list');
+const btnBackLanding = document.getElementById('btn-back-landing');
 
 // Lobby
 const lobbyInviteLink = document.getElementById('lobby-invite-link');
@@ -147,6 +164,20 @@ function init() {
     if (savedName) inputName.value = savedName;
     renderAvatar();
     initializeColorPalette();
+
+    // If redirected client, auto-join if name is present
+    if (isRedirectedClient && savedName) {
+        // Wait for connection then join
+        if (socket.connected) {
+            gameState.name = savedName;
+            joinGame();
+        } else {
+            socket.once('connect', () => {
+                gameState.name = savedName;
+                joinGame();
+            });
+        }
+    }
 }
 
 function initializeColorPalette() {
@@ -447,12 +478,99 @@ document.querySelectorAll('.emoji-option').forEach(btn => {
     });
 });
 
-btnPlay.addEventListener('click', () => {
+btnMakeGame.addEventListener('click', () => {
     const name = inputName.value.trim();
     if (!name) return alert("Please enter a name!");
     gameState.name = name;
     localStorage.setItem('classgame_name', name);
-    joinGame();
+
+    // Start hosting
+    socket.emit('start-hosting');
+
+    // Wait for internal server to be ready (optional, but good practice)
+    // For now, we trust the socket emit and proceed
+    joinGame(); // Host always joins their own game
+});
+
+btnJoinGame.addEventListener('click', () => {
+    const name = inputName.value.trim();
+    if (!name) return alert("Please enter a name!");
+    gameState.name = name;
+    localStorage.setItem('classgame_name', name);
+
+    showScreen('join');
+
+    // Request local IP to fill prefix
+    socket.emit('local-ip-info', {});
+
+    // Start searching for servers
+    startScanningForServers();
+});
+
+btnBackLanding.addEventListener('click', () => {
+    showScreen('landing');
+    // Stop scanning if needed (server handles timeout, but we could add explicit stop)
+});
+
+// Manual IP Connect
+btnConnectIp.addEventListener('click', () => {
+    const suffix = inputIpSuffix.value.trim();
+    if (!suffix) return alert("Enter the last digits!");
+
+    const prefix = ipPrefixSpan.textContent;
+    const fullIp = prefix + suffix;
+    const port = '3001'; // Default port
+
+    connectToHost(fullIp, port);
+});
+
+function connectToHost(ip, port) {
+    console.log(`Redirecting to host: http://${ip}:${port}`);
+    // Redirect with ?client=true param to auto-join on arrival
+    window.location.href = `http://${ip}:${port}/?client=true`;
+}
+
+// Server List Discovery
+function startScanningForServers() {
+    serverListContainer.innerHTML = '<div class="server-list-placeholder">Searching for games...</div>';
+    socket.emit('find-servers');
+}
+
+socket.on('server-found', (info) => {
+    // Remove placeholder if it exists
+    const placeholder = serverListContainer.querySelector('.server-list-placeholder');
+    if (placeholder) placeholder.remove();
+
+    // Check if duplicate
+    const existing = document.getElementById(`server-${info.ip}`);
+    if (existing) return;
+
+    const div = document.createElement('div');
+    div.id = `server-${info.ip}`;
+    div.className = 'server-item';
+    div.innerHTML = `
+        <div class="server-info-text">
+            <strong>${info.name}</strong><br>
+            <small>${info.ip}:${info.port}</small>
+        </div>
+        <button class="btn-small btn-green">Join</button>
+    `;
+
+    div.addEventListener('click', () => {
+        connectToHost(info.ip, info.port);
+    });
+
+    serverListContainer.appendChild(div);
+});
+
+socket.on('local-ip-info', (data) => {
+    // Update the prefix based on local IP (assuming /24 subnet)
+    const parts = data.ip.split('.');
+    if (parts.length === 4) {
+        parts.pop(); // Remove last octet
+        ipPrefixSpan.textContent = parts.join('.') + '.';
+        gameState.localIpPrefix = parts.join('.') + '.';
+    }
 });
 
 btnCopyLink.addEventListener('click', () => {

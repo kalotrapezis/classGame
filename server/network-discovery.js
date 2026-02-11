@@ -51,10 +51,27 @@ class NetworkDiscovery {
         // Initialize Bonjour
         this.bonjour = new Bonjour.default();
 
-        // Publish the main service
-        this.publishMainService();
+        // DO NOT publish automatically anymore
+        // this.publishMainService();
 
         return this.localIP;
+    }
+
+    startBroadcasting() {
+        if (!this.bonjour) return;
+        this.publishMainService();
+    }
+
+    stopBroadcasting() {
+        if (this.mainService) {
+            this.mainService.stop();
+            this.mainService = null;
+        }
+        for (const service of this.classServices.values()) {
+            service.stop();
+        }
+        this.classServices.clear();
+        console.log('Stopped broadcasting services');
     }
 
     publishMainService() {
@@ -170,19 +187,10 @@ class NetworkDiscovery {
     }
 
     stop() {
-        if (this.mainService) {
-            this.mainService.stop();
-        }
-
-        for (const service of this.classServices.values()) {
-            service.stop();
-        }
-        this.classServices.clear();
-
+        this.stopBroadcasting();
         if (this.bonjour) {
             this.bonjour.destroy();
         }
-        console.log('Stopped broadcasting services');
     }
 
     getLocalIP() {

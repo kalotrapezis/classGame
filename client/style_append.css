@@ -1,33 +1,87 @@
-/* Game layout for proper flex behavior */
-.game-main {
-    display: flex;
-    gap: 10px;
-    flex: 1;
-    min-height: 0;
+
+/* JOIN SCREEN STYLES */
+.join-method {
+  width: 100%;
+  margin-bottom: 20px;
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
 }
 
-.game-canvas-area {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+.join-method h3 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #333;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
 }
 
-.game-sidebar {
-    display: flex;
-    flex-direction: column;
-    width: 250px;
-    gap: 10px;
+.hint-text {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 5px;
 }
 
-.game-chat {
-    flex: 1;
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
+.ip-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.game-players {
-    max-height: 250px;
-    overflow-y: auto;
+#ip-prefix {
+  font-family: monospace;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+#input-ip-suffix {
+  width: 80px;
+  padding: 8px;
+  font-size: 1.2rem;
+  text-align: center;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.server-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.server-item:hover {
+  background: #e6f7ff;
+  border-color: #1890ff;
+}
+
+.server-list-placeholder {
+  text-align: center;
+  color: #999;
+  padding: 10px;
+  font-style: italic;
+}
+
+/* Dark Blue Button for Make Game */
+.btn-blue-dark {
+  background-color: #003366; /* Dark Blue */
+  color: white;
+}
+
+.btn-blue-dark:hover {
+  background-color: #002244;
 }

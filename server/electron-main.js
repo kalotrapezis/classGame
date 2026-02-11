@@ -32,7 +32,7 @@ function createWindow() {
     // Load the local server URL
     // Use HTTPS if TLS is enabled, otherwise HTTP
     const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
-    const serverUrl = `${protocol}://localhost:3000`;
+    const serverUrl = `${protocol}://localhost:3001`;
 
     console.log(`Loading window from: ${serverUrl}`);
     mainWindow.loadURL(serverUrl);
