@@ -502,8 +502,14 @@ io.on('connection', (socket) => {
 
   socket.on('start-hosting', () => {
     console.log(`Socket ${socket.id} started hosting`);
+    const address = server.address();
+    const port = address ? address.port : START_PORT;
+    // Ensure discovery is ready (idempotent if already initialized)
+    if (!networkDiscovery.port) {
+      networkDiscovery.initialize(port, () => []);
+    }
     networkDiscovery.startBroadcasting();
-    socket.emit('hosting-started', { ip: LOCAL_IP, port: START_PORT });
+    socket.emit('hosting-started', { ip: LOCAL_IP, port: port });
   });
 
   socket.on('stop-hosting', () => {
@@ -1004,22 +1010,55 @@ function startTimer(seconds, onComplete) {
 }
 
 const START_PORT = parseInt(process.env.PORT) || 3001;
+let serverInstance;
 
 function startServer(port) {
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on http://${LOCAL_IP}:${port}`);
-    console.log('Students can join at this URL directly - no room code needed!');
-  }).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is busy, trying ${port + 1}...`);
-      startServer(port + 1);
+  return new Promise((resolve, reject) => {
+    serverInstance = server.listen(port, () => {
+      const actualPort = server.address().port;
+      console.log(`Server running on http://${LOCAL_IP}:${actualPort}`);
+
+      // Initialize Discovery with the actual port
+      networkDiscovery.initialize(actualPort, () => {
+        return [{
+          id: 'main',
+          name: 'ClassGame', // Simple name for now
+          count: room.players.length
+        }];
+      });
+
+      console.log('Students can join at this URL directly - no room code needed!');
+      resolve(actualPort);
+    }).on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${port} is busy, trying ${port + 1}...`);
+        // Recursive call needs to propagate the promise
+        startServer(port + 1).then(resolve).catch(reject);
+      } else {
+        console.error('Server error:', err);
+        reject(err);
+      }
+    });
+  });
+}
+
+function stopServer() {
+  return new Promise((resolve, reject) => {
+    if (serverInstance) {
+      serverInstance.close((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
     } else {
-      console.error('Server error:', err);
+      resolve();
     }
   });
 }
 
-startServer(START_PORT);
+// Only auto-start if run directly (not imported)
+if (require.main === module) {
+  startServer(START_PORT);
+}
 
 // Global error handling
 process.on('uncaughtException', (err) => {
@@ -1029,3 +1068,5 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Promise Rejection:', reason);
 });
+
+module.exports = { startServer, stopServer, app, server };

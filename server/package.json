@@ -1,6 +1,6 @@
 {
     "name": "classgame",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "ClassGame - Local Network File Sharing for Education",
     "productName": "ClassGame",
     "author": "ClassGame Team",
@@ -29,7 +29,9 @@
                 {
                     "name": "@electron-forge/maker-squirrel",
                     "config": {
-                        "name": "ClassGame"
+                        "name": "ClassGame",
+                        "setupIcon": "./assets/icon.ico",
+                        "loadingGif": "./assets/loading.gif"
                     }
                 },
                 {

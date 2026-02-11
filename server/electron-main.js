@@ -1,6 +1,11 @@
 const { app, BrowserWindow, Tray, Menu } = require('electron');
 const path = require('path');
-const { server, stopServer } = require('./index.js'); // Import the server to start it and stop it
+const { server, stopServer, startServer } = require('./index.js'); // Import the server to start it and stop it
+
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+if (require('electron-squirrel-startup')) {
+    app.quit();
+}
 
 let mainWindow;
 let tray;
@@ -17,7 +22,7 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
     }
 });
 
-function createWindow() {
+async function createWindow() {
     const iconPath = path.join(__dirname, 'assets', 'icon.ico');
     mainWindow = new BrowserWindow({
         width: 1200,
@@ -30,12 +35,21 @@ function createWindow() {
     });
 
     // Load the local server URL
+    // Load the local server URL
     // Use HTTPS if TLS is enabled, otherwise HTTP
     const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
-    const serverUrl = `${protocol}://localhost:3001`;
 
-    console.log(`Loading window from: ${serverUrl}`);
-    mainWindow.loadURL(serverUrl);
+    // Start server and get the actual port
+    try {
+        const port = await startServer(3001);
+        const serverUrl = `${protocol}://localhost:${port}`;
+
+        console.log(`Loading window from: ${serverUrl}`);
+        mainWindow.loadURL(serverUrl);
+    } catch (err) {
+        console.error('Failed to start server:', err);
+        // Fallback or error display could go here
+    }
 
 
     mainWindow.on('close', (event) => {

@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v2.0.1 (2026-02-11)
+### Bug Fixes
+- **Installer Launch Fix**: Resolved an issue where the app would run as a process but the window wouldn't open. The app now waits for the server to be fully ready before opening the UI.
+- **Port Conflict Handling**: The app now automatically detects if port 3001 is busy and switches to the next available port (e.g., 3002), ensuring it always launches successfully.
+
+---
+
 ## v2.0.0 (2026-02-11) 🚀
 ### Major Features
 - **Expanded Word Lists**: Added over 160 new words across diverse categories like Landscape, Science, Emotions, Mythology, and History for both Greek and English.
