@@ -52,13 +52,8 @@ async function createWindow() {
     }
 
 
-    mainWindow.on('close', (event) => {
-        if (!isQuitting) {
-            event.preventDefault();
-            mainWindow.hide();
-            return false;
-        }
-    });
+    // Allow window to close naturally, which will trigger window-all-closed
+    // mainWindow.on('close', (event) => { ... });
 }
 
 function createTray() {
@@ -176,11 +171,12 @@ app.whenReady().then(() => {
     });
 });
 
-app.on('window-all-closed', () => {
-    // Do not quit when all windows are closed, keep running in tray
-    // Do not quit when all windows are closed, keep running in tray
-    // logic is handled in mainWindow.on('close') for minimizing
-    if (process.platform !== 'darwin') {
-        // app.quit(); // We want to stay alive in tray
+app.on('window-all-closed', async () => {
+    // Stop server before quitting
+    try {
+        await stopServer();
+    } catch (error) {
+        console.error('Error stopping server:', error);
     }
+    app.quit();
 });
