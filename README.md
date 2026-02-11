@@ -6,7 +6,8 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 
 - 🎨 **Real-time Drawing** - Smooth drawing canvas with multiple tools (pencil, eraser, fill, clear)
 - 🎮 **Multiplayer Fun** - Play with friends on your local network
-- 🔗 **Simple Joining** - Just share `192.168.x.x:3000` - no room codes needed!
+- 🔗 **Simple Joining** - Just share `192.168.x.x:3001` - no room codes needed!
+- 📍 **Smart IP** - Players only need to enter the last digits of the Host IP to connect.
 - 🗳️ **Anti-Cheat Voting** - Vote against suspected cheaters with 4000 point penalties
 - 🏆 **Scoring System** - Points based on how quickly you guess (2000 max, 100 min)
 - 🔄 **Score Recovery** - Reconnecting players get their score back automatically
@@ -17,6 +18,7 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 - 🇬🇷 **Greek Language** - Built-in support for Greek with 98 words and accent-insensitive matching
 - ⚙️ **Customizable** - Configure rounds (2-5), draw time (60-120s), word count (3-8), and hints (2-5)
 - 📱 **Responsive** - Works on tablets and smaller screens with proper scrolling
+- 🏠 **Make a Game** - Clear distinction between "Make a Game" (to host) and "Join Game". No more guessing who the server is!
 - 🔄 **Host Restart** - Host can restart the game mid-play (returns everyone to lobby, keeps scores)
 
 ## Quick Start

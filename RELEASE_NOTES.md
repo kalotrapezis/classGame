@@ -4,6 +4,9 @@
 ### Major Features
 - **Expanded Word Lists**: Added over 160 new words across diverse categories like Landscape, Science, Emotions, Mythology, and History for both Greek and English.
 - **Improved Visibility**: Replaced the standard crosshair cursor with a custom SVG cursor that uses black and white strokes, ensuring maximum visibility on any background.
+- **Architecture Revamp**: Introduced "Make a Game" and "Join Game" buttons. The first person to "Make a Game" becomes the host/server for that session.
+- **Smart IP**: Simplified connection process—clients only need to type the last digits of the server's IP address.
+- **Port Change**: Moved to port **3001** to prevent conflicts with other applications (like ClassSend).
 
 ### UI/UX
 - **Toolbox Polish**: Refined the drawing tools and icons for better consistency.
