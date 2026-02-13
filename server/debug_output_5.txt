@@ -1,0 +1,86 @@
+Local IP: 10.24.251.1
+TEST_MODE: true 
+
+
+  Game Flow Tests
+Server running on http://10.24.251.1:3002
+Local IP: 10.24.251.1
+Students can join at this URL directly - no room code needed!
+User connected: 4jzgb1852HJd_ibVAAAD from ::1
+User connected: Z7i0TzZGvO5g6BhZAAAE from ::1
+User connected: RtxnXGhxAj2iWQZtAAAF from ::1
+Turn update received. Drawer: 4jzgb1852HJd_ibVAAAD Round: 1
+Turns so far: 1
+(node:21784) TimeoutNegativeWarning: -1000 is a negative number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Turn update received. Drawer: Z7i0TzZGvO5g6BhZAAAE Round: 1
+Turns so far: 2
+Turn update received. Drawer: RtxnXGhxAj2iWQZtAAAF Round: 1
+Turns so far: 3
+3 turns reached. verifying...
+    ✔ should rotate turns sequentially (2743ms)
+All players left. Room reset.
+User connected: X4HLWbpcuyM-T-vQAAAJ from ::1
+User connected: Nu4zGE-m_xN0bDfJAAAK from ::1
+User connected: 1sPTOwrgTDLGEAiDAAAL from ::1
+P3 join: {
+  success: true,
+  isHost: true,
+  settings: {
+    rounds: 3,
+    drawTime: 80,
+    wordCount: 3,
+    hints: 2,
+    difficulty: 'easy',
+    customWords: '',
+    myWordsOnly: false,
+    language: 'en'
+  },
+  isLateJoiner: false
+}
+P1 join: {
+  success: true,
+  isHost: false,
+  settings: {
+    rounds: 3,
+    drawTime: 80,
+    wordCount: 3,
+    hints: 2,
+    difficulty: 'easy',
+    customWords: '',
+    myWordsOnly: false,
+    language: 'en'
+  },
+  isLateJoiner: false
+}
+P2 join: {
+  success: true,
+  isHost: false,
+  settings: {
+    rounds: 3,
+    drawTime: 80,
+    wordCount: 3,
+    hints: 2,
+    difficulty: 'easy',
+    customWords: '',
+    myWordsOnly: false,
+    language: 'en'
+  },
+  isLateJoiner: false
+}
+    1) should handle player exit and continue game
+All players left. Room reset.
+
+
+  1 passing (13s)
+  1 failing
+
+  1) Game Flow Tests
+       should handle player exit and continue game:
+     Error: Timeout of 10000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\tests\flow.test.js)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+
+

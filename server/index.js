@@ -59,7 +59,8 @@ const networkDiscovery = new NetworkDiscovery();
 // --- GAME CONSTANTS ---
 const MAX_PLAYERS = 20;
 const MAX_CANVAS_ACTIONS = 2000;
-const CONNECTION_RATE_LIMIT_MS = 100;
+console.log('TEST_MODE:', process.env.TEST_MODE);
+const CONNECTION_RATE_LIMIT_MS = (process.env.TEST_MODE === 'true' || process.env.TEST_MODE === true) ? 0 : 100;
 
 // Normalize text: remove accents and convert to lowercase for comparison (EASY mode)
 function normalizeText(str) {
@@ -210,13 +211,16 @@ io.on('connection', (socket) => {
   const clientIP = socket.handshake.address || 'unknown';
   const now = Date.now();
 
-  const lastTime = lastConnectionTime.get(clientIP);
-  if (lastTime && (now - lastTime) < CONNECTION_RATE_LIMIT_MS) {
-    console.log(`Rate limiting connection from ${clientIP}`);
-    socket.disconnect(true);
-    return;
+  // SKIP RATE LIMITING IN TEST MODE
+  if (!process.env.TEST_MODE) {
+    const lastTime = lastConnectionTime.get(clientIP);
+    if (lastTime && (now - lastTime) < CONNECTION_RATE_LIMIT_MS) {
+      console.log(`Rate limiting connection from ${clientIP}`);
+      socket.disconnect(true);
+      return;
+    }
+    lastConnectionTime.set(clientIP, now);
   }
-  lastConnectionTime.set(clientIP, now);
 
   if (lastConnectionTime.size > 1000) {
     const cutoff = now - 60000;
@@ -371,9 +375,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('start-game', () => {
-    if (room.hostId !== socket.id) return;
-    if (room.players.length < 2) {
-      socket.emit('chat-message', { system: true, content: 'Need at least 2 players to start the game!' });
+    const minPlayers = process.env.TEST_MODE ? 1 : 2;
+    if (room.hostId !== socket.id) {
+      return;
+    }
+    if (room.players.length < minPlayers) {
+      socket.emit('chat-message', { system: true, content: `Need at least ${minPlayers} player${minPlayers === 1 ? '' : 's'} to start the game!` });
       return;
     }
     startGame();
@@ -741,7 +748,11 @@ function resetRoom() {
       wordOptions: [],
       revealedIndices: [],
       hintTimeouts: [],
-      canvasActions: []
+      canvasActions: [],
+      playersWhoHaveDrawnThisRound: new Set(),
+      playerVoteCounts: {},            // Initialize to prevent TypeError
+      playersWhoInitiatedVote: new Set(), // Initialize to prevent TypeError
+      voteCooldownActive: false        // Initialize for consistency
     }
   };
 }
@@ -964,7 +975,8 @@ function endTurn() {
 
   io.to('game-room').emit('turn-end', { word: room.game.currentWord });
   // Wait 8 seconds between turns to allow WiFi clients to reconnect
-  startTimer(8, () => startTurn());
+  const delay = process.env.TEST_MODE ? 0 : 8;
+  startTimer(delay, () => startTurn());
 }
 
 function endGame() {
@@ -999,6 +1011,7 @@ function startTimer(seconds, onComplete) {
   room.game.timer = seconds;
   io.to('game-room').emit('timer-update', room.game.timer);
 
+  const intervalMs = process.env.TEST_MODE ? 50 : 1000;
   room.game.interval = setInterval(() => {
     room.game.timer--;
     io.to('game-room').emit('timer-update', room.game.timer);
@@ -1006,7 +1019,7 @@ function startTimer(seconds, onComplete) {
       clearInterval(room.game.interval);
       if (onComplete) onComplete();
     }
-  }, 1000);
+  }, intervalMs);
 }
 
 const START_PORT = parseInt(process.env.PORT) || 3001;

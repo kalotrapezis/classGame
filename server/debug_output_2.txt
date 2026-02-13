@@ -1,0 +1,32 @@
+Local IP: 10.24.251.1
+TEST_MODE: true 
+
+
+  Game Flow Tests
+Server running on http://10.24.251.1:3002
+Local IP: 10.24.251.1
+Students can join at this URL directly - no room code needed!
+User connected: xrMo_TB2ojqBZ5qoAAAD from ::1
+User connected: V5IXBsua1P5tx3S7AAAE from ::1
+User connected: 2h7gWq012dfg6LRXAAAF from ::1
+    1) should rotate turns sequentially
+All players left. Room reset.
+User connected: nS-vtGxvXaikdVkxAAAJ from ::1
+User connected: 4xs58VI9z6D8Zl4dAAAK from ::1
+User connected: pzJQFir0EBjWQxHHAAAL from ::1
+    ✔ should handle player exit and continue game (214ms)
+Drawer left during active round - skipping to next turn
+All players left. Room reset.
+
+
+  1 passing (10s)
+  1 failing
+
+  1) Game Flow Tests
+       should rotate turns sequentially:
+     Error: Timeout of 10000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\tests\flow.test.js)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+
+

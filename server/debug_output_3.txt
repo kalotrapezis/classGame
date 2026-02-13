@@ -1,0 +1,41 @@
+Local IP: 10.24.251.1
+TEST_MODE: true 
+
+
+  Game Flow Tests
+Server running on http://10.24.251.1:3002
+Local IP: 10.24.251.1
+Students can join at this URL directly - no room code needed!
+User connected: 1ZskofomQFxJqj0OAAAD from ::1
+User connected: 2cnpY_kGqHjHt_P6AAAE from ::1
+User connected: TEuBYyNE8lx-4RS8AAAF from ::1
+Turn update received. Drawer: 1ZskofomQFxJqj0OAAAD Round: 1
+Turns so far: 1
+(node:8828) TimeoutNegativeWarning: -1000 is a negative number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Turn update received. Drawer: 2cnpY_kGqHjHt_P6AAAE Round: 1
+Turns so far: 2
+Turn update received. Drawer: TEuBYyNE8lx-4RS8AAAF Round: 1
+Turns so far: 3
+3 turns reached. verifying...
+    ✔ should rotate turns sequentially (2733ms)
+All players left. Room reset.
+User connected: LXiJDDGO6Q7KotTMAAAJ from ::1
+User connected: n2sT1XXJAA_F6jfRAAAK from ::1
+User connected: B8UJ02f6Ts6LFjyWAAAL from ::1
+    1) should handle player exit and continue game
+All players left. Room reset.
+
+
+  1 passing (13s)
+  1 failing
+
+  1) Game Flow Tests
+       should handle player exit and continue game:
+     Error: Timeout of 10000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\tests\flow.test.js)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+
+

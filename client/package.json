@@ -1,15 +1,17 @@
 {
     "name": "client",
     "private": true,
-    "version": "2.0.1",
+    "version": "2.1.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
         "dev:host": "vite --host",
         "build": "vite build --outDir ../server/public --emptyOutDir",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test:ui": "playwright test"
     },
     "devDependencies": {
+        "@playwright/test": "^1.58.2",
         "vite": "^7.2.4"
     },
     "dependencies": {

@@ -139,7 +139,7 @@ function createTray() {
                     } catch (error) {
                         console.error('Error stopping server:', error);
                     }
-                    app.quit();
+                    app.exit(0); // Force exit to ensure process terminates
                 }
             }
         ]);

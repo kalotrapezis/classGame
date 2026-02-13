@@ -1,0 +1,58 @@
+Local IP: 10.24.251.1
+TEST_MODE: true 
+
+
+  Game Flow Tests
+Server running on http://10.24.251.1:3002
+Local IP: 10.24.251.1
+Students can join at this URL directly - no room code needed!
+User connected: rWkwhwx3v0xtVZW3AAAD from ::1
+User connected: gfouM5f0OesVmpAzAAAE from ::1
+User connected: olX3wwh6Ws85-FXTAAAF from ::1
+Uncaught Exception: AssertionError: expected 1 to equal 3
+    at Socket.handleTurn (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\tests\flow.test.js:89:48)
+    at Emitter.emit (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\@socket.io\component-emitter\lib\cjs\index.js:143:20)
+    at Socket.emitEvent (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\socket.io-client\build\cjs\socket.js:558:20)
+    at Socket.onevent (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\socket.io-client\build\cjs\socket.js:545:18)
+    at Socket.onpacket (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\socket.io-client\build\cjs\socket.js:513:22)
+    at Emitter.emit (C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\@socket.io\component-emitter\lib\cjs\index.js:143:20)
+    at C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\socket.io-client\build\cjs\manager.js:246:18
+    at process.processTicksAndRejections (node:internal/process/task_queues:88:21) {
+  actual: 1,
+  expected: 3,
+  showDiff: true,
+  operator: 'strictEqual'
+}
+    1) should rotate turns sequentially
+Drawer left during active round - skipping to next turn
+All players left. Room reset.
+User connected: uLEj3PRJ0c-95QeLAAAJ from ::1
+User connected: ugW2fc2OIBiVqYelAAAK from ::1
+User connected: vsjHb3FfpVPoJsEUAAAL from ::1
+    ✔ should handle player exit and continue game (2985ms)
+All players left. Room reset.
+
+
+  1 passing (4s)
+  1 failing
+
+  1) Game Flow Tests
+       should rotate turns sequentially:
+
+      Uncaught AssertionError: expected 1 to equal 3
+      + expected - actual
+
+      -1
+      +3
+      
+      at Socket.handleTurn (tests\flow.test.js:89:48)
+      at Emitter.emit (node_modules\@socket.io\component-emitter\lib\cjs\index.js:143:20)
+      at Socket.emitEvent (node_modules\socket.io-client\build\cjs\socket.js:558:20)
+      at Socket.onevent (node_modules\socket.io-client\build\cjs\socket.js:545:18)
+      at Socket.onpacket (node_modules\socket.io-client\build\cjs\socket.js:513:22)
+      at Emitter.emit (node_modules\@socket.io\component-emitter\lib\cjs\index.js:143:20)
+      at C:\Users\Teo\.gemini\antigravity\scratch\classGame\server\node_modules\socket.io-client\build\cjs\manager.js:246:18
+      at process.processTicksAndRejections (node:internal/process/task_queues:88:21)
+
+
+

@@ -1,5 +1,19 @@
 # ClassGame - Release Notes
 
+## v2.1.0 (2026-02-13) 🧪
+### Major Features
+- **Comprehensive Test Suite**: Added a full test suite for backend game flow, robustness (vote spam, churn), and frontend UI visibility via Playwright.
+- **Improved Upgrade Workflow**: Added a structured release/upgrade workflow for consistent building and testing.
+
+### UI/UX Improvements
+- **Word Selection Overlay**: Fixed layout issue where word choices would overflow the canvas. Now supports multiple rows with centered wrapping.
+- **Tray Icon Fix**: The "Close" button in the system tray now reliably terminates the application.
+
+### Bug Fixes
+- **Initialization Fix**: Resolved a crash in the voting system by properly initializing voting state variables on room reset.
+
+---
+
 ## v2.0.1 (2026-02-11)
 ### Bug Fixes
 - **Installer Launch Fix**: Resolved an issue where the app would run as a process but the window wouldn't open. The app now waits for the server to be fully ready before opening the UI.

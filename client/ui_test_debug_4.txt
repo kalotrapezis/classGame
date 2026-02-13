@@ -1,0 +1,38 @@
+[2m[WebServer] [22m
+[2m[WebServer] [22m> classgame@2.0.1 server
+[2m[WebServer] [22m> node index.js
+[2m[WebServer] [22m
+[2m[WebServer] [22mLocal IP: 10.24.251.1
+[2m[WebServer] [22mTEST_MODE: true 
+[2m[WebServer] [22mServer running on http://10.24.251.1:3001
+[2m[WebServer] [22mLocal IP: 10.24.251.1
+[2m[WebServer] [22mStudents can join at this URL directly - no room code needed!
+
+Running 1 test using 1 worker
+
+Navigating to /
+BROWSER LOG: Connecting to ClassGame server at: http://localhost:3001
+[2m[WebServer] [22mUser connected: c7gW1yZzLABtyiAfAAAB from ::1
+BROWSER LOG: Connected to server
+BROWSER LOG: Connection: good (47ms latency, throttle: 50ms)
+Filling input
+Checking lobby
+[2m[WebServer] [22mSocket c7gW1yZzLABtyiAfAAAB started hosting
+[2m[WebServer] [22mBroadcasting main ClassSend service on 10.24.251.1:3001
+BROWSER LOG: showScreen called with: lobby
+Starting game
+Checking game screen
+BROWSER LOG: socket.on(game-started) fired!
+BROWSER LOG: showScreen called with: game
+BROWSER ERROR: Error [TypeError]: Cannot set properties of null (setting 'textContent')
+    at mt.<anonymous> (http://localhost:3001/assets/index-Da6m_VnT.js:13:6655)
+    at f.emit (http://localhost:3001/assets/index-Da6m_VnT.js:1:5472)
+    at mt.emitEvent (http://localhost:3001/assets/index-Da6m_VnT.js:1:34627)
+    at mt.onevent (http://localhost:3001/assets/index-Da6m_VnT.js:1:34430)
+    at mt.onpacket (http://localhost:3001/assets/index-Da6m_VnT.js:1:34102)
+    at f.emit (http://localhost:3001/assets/index-Da6m_VnT.js:1:5472)
+    at http://localhost:3001/assets/index-Da6m_VnT.js:1:40149
+[2m[WebServer] [22mAll players left. Room reset.
+  ✓  1 tests\ui.spec.js:5:5 › UI Visibility & Robustness › should display tools and canvas with network delay (8.9s)
+
+  1 passed (11.2s)

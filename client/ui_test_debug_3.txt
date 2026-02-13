@@ -1,0 +1,57 @@
+[2m[WebServer] [22m
+[2m[WebServer] [22m> classgame@2.0.1 server
+[2m[WebServer] [22m> node index.js
+[2m[WebServer] [22m
+[2m[WebServer] [22mLocal IP: 10.24.251.1
+[2m[WebServer] [22mTEST_MODE: [90mundefined[39m
+[2m[WebServer] [22mServer running on http://10.24.251.1:3001
+[2m[WebServer] [22mLocal IP: 10.24.251.1
+[2m[WebServer] [22mStudents can join at this URL directly - no room code needed!
+
+Running 1 test using 1 worker
+
+Navigating to /
+BROWSER LOG: Connecting to ClassGame server at: http://localhost:3001
+[2m[WebServer] [22mUser connected: 0witAp_92SHRu0D_AAAB from ::1
+BROWSER LOG: Connected to server
+BROWSER LOG: Connection: good (30ms latency, throttle: 50ms)
+Filling input
+Checking lobby
+[2m[WebServer] [22mSocket 0witAp_92SHRu0D_AAAB started hosting
+[2m[WebServer] [22mBroadcasting main ClassSend service on 10.24.251.1:3001
+BROWSER LOG: showScreen called with: lobby
+Starting game
+Checking game screen
+[2m[WebServer] [22mAll players left. Room reset.
+  ✘  1 tests\ui.spec.js:5:5 › UI Visibility & Robustness › should display tools and canvas with network delay (15.8s)
+
+
+  1) tests\ui.spec.js:5:5 › UI Visibility & Robustness › should display tools and canvas with network delay 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator:  locator('#screen-game')
+    Expected: visible
+    Received: hidden
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('#screen-game')[22m
+    [2m    14 × locator resolved to <div id="screen-game" class="screen hidden">…</div>[22m
+    [2m       - unexpected value "hidden"[22m
+
+
+      35 |         console.log('Checking game screen');
+      36 |         // Should be in game
+    > 37 |         await expect(page.locator('#screen-game')).toBeVisible({ timeout: 10000 });
+         |                                                    ^
+      38 |
+      39 |         // Tools checks
+      40 |         await expect(page.locator('.toolbar')).toBeVisible();
+        at C:\Users\Teo\.gemini\antigravity\scratch\classGame\client\tests\ui.spec.js:37:52
+
+    Error Context: test-results\ui-UI-Visibility-Robustnes-5f679-d-canvas-with-network-delay\error-context.md
+
+  1 failed
+    tests\ui.spec.js:5:5 › UI Visibility & Robustness › should display tools and canvas with network delay 
