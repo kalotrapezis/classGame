@@ -1,5 +1,13 @@
 # ClassGame - Release Notes
 
+## v2.1.1 (2026-02-14)
+
+### 🐛 Bug Fixes
+- **System Tray:** Fixed an issue where the "Close" button in the system tray would not quit the application because it was waiting for active connections to close. Added a timeout to force quit if the server takes too long to stop.
+
+---
+
+
 ## v2.1.0 (2026-02-13) 🧪
 ### Major Features
 - **Comprehensive Test Suite**: Added a full test suite for backend game flow, robustness (vote spam, churn), and frontend UI visibility via Playwright.

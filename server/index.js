@@ -1058,8 +1058,16 @@ function startServer(port) {
 function stopServer() {
   return new Promise((resolve, reject) => {
     if (serverInstance) {
+      if (serverInstance.closeAllConnections) {
+          serverInstance.closeAllConnections();
+      }
       serverInstance.close((err) => {
-        if (err) return reject(err);
+        if (err) {
+            console.error('Error closing server:', err);
+            // resolve anyway to allow app to exit
+            resolve();
+            return;
+        }
         resolve();
       });
     } else {

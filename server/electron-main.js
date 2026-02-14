@@ -134,12 +134,14 @@ function createTray() {
                 label: 'Close',
                 click: async () => {
                     isQuitting = true;
+                    // Timeout-safe server stop
+                    const timeout = new Promise(resolve => setTimeout(resolve, 1000));
                     try {
-                        await stopServer();
+                        await Promise.race([stopServer(), timeout]);
                     } catch (error) {
                         console.error('Error stopping server:', error);
                     }
-                    app.exit(0); // Force exit to ensure process terminates
+                    app.exit(0); // Force exit
                 }
             }
         ]);
@@ -174,7 +176,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', async () => {
     // Stop server before quitting
     try {
-        await stopServer();
+        const timeout = new Promise(resolve => setTimeout(resolve, 1000));
+        await Promise.race([stopServer(), timeout]);
     } catch (error) {
         console.error('Error stopping server:', error);
     }
