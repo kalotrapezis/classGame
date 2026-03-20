@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v2.1.2 (2026-02-18)
+
+### 🐛 Bug Fixes
+- **Port Conflict Fix:** Fixed an issue where ClassGame would inadvertently connect to ClassSend servers running on port 3000. Changed the network discovery service type to `classgame` and updated the default port to 3001.
+
+---
+
 ## v2.1.1 (2026-02-14)
 
 ### 🐛 Bug Fixes

@@ -435,7 +435,7 @@ io.on('connection', (socket) => {
     const address = server.address();
     callback({
       ip: LOCAL_IP,
-      port: address ? address.port : (process.env.PORT || 3000)
+      port: address ? address.port : (process.env.PORT || 3001)
     });
   });
 
@@ -1059,14 +1059,14 @@ function stopServer() {
   return new Promise((resolve, reject) => {
     if (serverInstance) {
       if (serverInstance.closeAllConnections) {
-          serverInstance.closeAllConnections();
+        serverInstance.closeAllConnections();
       }
       serverInstance.close((err) => {
         if (err) {
-            console.error('Error closing server:', err);
-            // resolve anyway to allow app to exit
-            resolve();
-            return;
+          console.error('Error closing server:', err);
+          // resolve anyway to allow app to exit
+          resolve();
+          return;
         }
         resolve();
       });

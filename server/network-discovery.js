@@ -82,8 +82,8 @@ class NetworkDiscovery {
         const classes = this.getClassesCallback ? this.getClassesCallback() : [];
 
         this.mainService = this.bonjour.publish({
-            name: 'ClassSend Server',
-            type: 'classsend',
+            name: 'ClassGame Server',
+            type: 'classgame',
             port: this.port,
             txt: {
                 version: '4.0.0',
@@ -141,7 +141,7 @@ class NetworkDiscovery {
 
     // Find other ClassSend servers on the network
     findServers(onServerFound, onServerLost) {
-        const browser = this.bonjour.find({ type: 'classsend' });
+        const browser = this.bonjour.find({ type: 'classgame' });
 
         browser.on('up', (service) => {
             // Don't report ourselves
