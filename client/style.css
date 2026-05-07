@@ -439,12 +439,18 @@ button:active {
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow: auto;
   color: white;
   font-size: 2rem;
   font-weight: bold;
   z-index: 10;
+  text-align: center;
 }
 
 .toolbar {

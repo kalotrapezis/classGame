@@ -1,5 +1,13 @@
 # ClassGame - Release Notes
 
+## v2.2.1 (2026-05-07)
+
+### 🐛 Bug Fixes
+- **Drawing precision / mouse offset:** Fixed the long-standing complaint that drawn strokes appeared offset from where the cursor was. The canvas is internally 800×600 (4:3) but is displayed at the container's actual size — when that ratio doesn't match, `object-fit: contain` letterboxes the content with empty bars on the sides. The previous mouse-mapping code ignored the letterbox, so clicks on the visible canvas content mapped to wrong internal coordinates. Mouse and touch coordinates are now correctly translated through the letterbox offset.
+- **Word-selection overlay layout:** With 7–8 words the "Choose a word:" label and the word buttons sat side-by-side in a flex row, which got crowded and could hide content. The overlay is now `flex-direction: column` with centered alignment, gap, padding, and `overflow: auto`, so the label is above the buttons and many or long words wrap (and scroll) cleanly within the canvas area.
+
+---
+
 ## v2.2.0 (2026-05-07)
 
 ### ✨ Major Changes

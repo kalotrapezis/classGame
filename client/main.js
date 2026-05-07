@@ -351,8 +351,27 @@ function stopDrawing() {
 
 function getCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    const internalAspect = canvas.width / canvas.height;
+    const rectAspect = rect.width / rect.height;
+
+    // Account for object-fit: contain letterboxing — the canvas content
+    // may be smaller than its bounding rect, with empty bars on the sides.
+    let displayedWidth, displayedHeight, offsetX, offsetY;
+    if (rectAspect > internalAspect) {
+        displayedHeight = rect.height;
+        displayedWidth = rect.height * internalAspect;
+        offsetX = (rect.width - displayedWidth) / 2;
+        offsetY = 0;
+    } else {
+        displayedWidth = rect.width;
+        displayedHeight = rect.width / internalAspect;
+        offsetX = 0;
+        offsetY = (rect.height - displayedHeight) / 2;
+    }
+
+    const scaleX = canvas.width / displayedWidth;
+    const scaleY = canvas.height / displayedHeight;
+
     let clientX, clientY;
     if (e.type.startsWith('touch')) {
         clientX = e.touches[0].clientX;
@@ -361,7 +380,7 @@ function getCoordinates(e) {
         clientX = e.clientX;
         clientY = e.clientY;
     }
-    return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+    return [(clientX - rect.left - offsetX) * scaleX, (clientY - rect.top - offsetY) * scaleY];
 }
 
 function drawLine(x1, y1, x2, y2, color, size) {
