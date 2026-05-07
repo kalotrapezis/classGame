@@ -149,12 +149,7 @@ let room = {
     revealedIndices: [],
     hintTimeouts: [],
     canvasActions: [],
-    activeVote: null,  // { targetId, targetName, initiatorId, votes: {playerId: 'up'|'down'}, timeout }
-    playersWhoInitiatedVote: new Set(),  // Track who initiated vote this round
     lastRoundPoints: {},
-    lastVoteEndTime: 0,  // Timestamp when last vote ended (for cooldown)
-    playerVoteCounts: {},  // { playerId: totalVotesInitiated } - remove voting after 3
-    voteCooldownActive: false,  // Track if cooldown is active
     playersWhoHaveDrawnThisRound: new Set()  // Track who has drawn in current round
   }
 };
@@ -458,9 +453,6 @@ io.on('connection', (socket) => {
     // Clear all timers
     if (room.game.interval) clearInterval(room.game.interval);
     if (room.game.hintTimeouts) room.game.hintTimeouts.forEach(t => clearTimeout(t));
-    if (room.game.activeVote && room.game.activeVote.timeout) {
-      clearTimeout(room.game.activeVote.timeout);
-    }
 
     // Preserve player data but reset their game state
     const preservedPlayers = room.players.map(p => ({
@@ -485,12 +477,7 @@ io.on('connection', (socket) => {
       revealedIndices: [],
       hintTimeouts: [],
       canvasActions: [],
-      activeVote: null,
-      playersWhoInitiatedVote: new Set(),
       lastRoundPoints: {},
-      lastVoteEndTime: 0,
-      playerVoteCounts: {},  // Reset vote counts on restart
-      voteCooldownActive: false,
       playersWhoHaveDrawnThisRound: new Set()
     };
 
@@ -541,107 +528,6 @@ io.on('connection', (socket) => {
     }, 10000);
   });
 
-
-  // Start a vote against a player
-  socket.on('start-vote', ({ targetId }) => {
-    // Must be in game
-    if (room.status !== 'drawing' && room.status !== 'selecting') return;
-
-    const initiator = room.players.find(p => p.id === socket.id);
-    const target = room.players.find(p => p.id === targetId);
-    if (!initiator || !target) return;
-    if (targetId === socket.id) return; // Can't vote against yourself
-
-    // Check if there's already an active vote
-    if (room.game.activeVote) {
-      socket.emit('chat-message', { content: 'A vote is already in progress!', system: true });
-      return;
-    }
-
-    // Check if vote cooldown is active (5 seconds after last vote ended)
-    if (room.game.voteCooldownActive) {
-      socket.emit('chat-message', { content: 'Please wait - vote cooldown active!', system: true });
-      return;
-    }
-
-    // Check if this player already initiated a vote this round
-    if (room.game.playersWhoInitiatedVote.has(socket.id)) {
-      socket.emit('chat-message', { content: 'You already initiated a vote this round!', system: true });
-      return;
-    }
-
-    // Check if this player has exceeded 3 total votes (remove voting capability)
-    const currentVoteCount = room.game.playerVoteCounts[socket.id] || 0;
-    if (currentVoteCount >= 3) {
-      socket.emit('chat-message', { content: 'You have lost voting privileges (3 votes used)!', system: true });
-      return;
-    }
-
-    // Increment vote count for this player
-    room.game.playerVoteCounts[socket.id] = currentVoteCount + 1;
-
-    // Mark this player as having initiated a vote this round
-    room.game.playersWhoInitiatedVote.add(socket.id);
-
-    // Start the vote session
-    room.game.activeVote = {
-      targetId,
-      targetName: target.name,
-      initiatorId: socket.id,
-      initiatorName: initiator.name,
-      votes: {}  // playerId -> 'up' | 'down'
-    };
-
-    // Notify clients that voting is now disabled (active vote)
-    io.to('game-room').emit('vote-buttons-state', { disabled: true, reason: 'active' });
-
-    io.to('game-room').emit('vote-started', {
-      targetId,
-      targetName: target.name,
-      initiatorName: initiator.name
-    });
-
-    io.to('game-room').emit('chat-message', {
-      content: `🗳️ ${initiator.name} started a vote against ${target.name}! Vote now (20 sec)`,
-      system: true
-    });
-
-    // Check if initiator has hit 3 votes - notify them
-    if (room.game.playerVoteCounts[socket.id] >= 3) {
-      socket.emit('vote-capability-removed');
-      socket.emit('chat-message', { content: '⚠️ You have used all 3 votes and can no longer initiate votes.', system: true });
-    }
-
-    // Set 20 second timeout
-    room.game.activeVote.timeout = setTimeout(() => {
-      processVoteResults();
-    }, 20000);
-  });
-
-  // Cast a vote
-  socket.on('cast-vote', ({ vote }) => {
-    if (!room.game.activeVote) return;
-
-    const voter = room.players.find(p => p.id === socket.id);
-    if (!voter) return;
-
-    // Can't vote if you're the target
-    if (socket.id === room.game.activeVote.targetId) return;
-
-    // Record the vote (overwrite if already voted)
-    room.game.activeVote.votes[socket.id] = vote; // 'up' or 'down'
-
-    // Count votes
-    const votes = Object.values(room.game.activeVote.votes);
-    const upVotes = votes.filter(v => v === 'up').length;
-    const downVotes = votes.filter(v => v === 'down').length;
-
-    io.to('game-room').emit('vote-update', {
-      upVotes,
-      downVotes,
-      totalVoters: room.players.length - 1
-    });
-  });
 
   socket.on('disconnect', () => {
     const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -749,10 +635,7 @@ function resetRoom() {
       revealedIndices: [],
       hintTimeouts: [],
       canvasActions: [],
-      playersWhoHaveDrawnThisRound: new Set(),
-      playerVoteCounts: {},            // Initialize to prevent TypeError
-      playersWhoInitiatedVote: new Set(), // Initialize to prevent TypeError
-      voteCooldownActive: false        // Initialize for consistency
+      playersWhoHaveDrawnThisRound: new Set()
     }
   };
 }
@@ -765,71 +648,10 @@ function startGame() {
   startTurn();
 }
 
-// Process vote results when timer expires
-function processVoteResults() {
-  if (!room.game.activeVote) return;
-
-  const vote = room.game.activeVote;
-  const votes = Object.values(vote.votes);
-  const upVotes = votes.filter(v => v === 'up').length;
-  const downVotes = votes.filter(v => v === 'down').length;
-
-  const target = room.players.find(p => p.id === vote.targetId);
-  const initiator = room.players.find(p => p.id === vote.initiatorId);
-
-  if (votes.length === 0) {
-    // No votes cast
-    io.to('game-room').emit('chat-message', {
-      content: `🗳️ Vote ended - no votes were cast!`,
-      system: true
-    });
-  } else if (downVotes > upVotes) {
-    // Majority voted down - target loses 4000 points
-    if (target) {
-      const pointsLost = Math.min(4000, target.score);
-      target.score = Math.max(0, target.score - 4000);
-      io.to('game-room').emit('chat-message', {
-        content: `⚠️ Vote passed! ${target.name} loses ${pointsLost} points! (${downVotes} 👎 vs ${upVotes} 👍)`,
-        system: true
-      });
-    }
-  } else {
-    // Majority voted up or tie - initiator loses 1000 points for failed vote
-    if (initiator) {
-      const pointsLost = Math.min(1000, initiator.score);
-      initiator.score = Math.max(0, initiator.score - 1000);
-      io.to('game-room').emit('chat-message', {
-        content: `⚠️ Vote failed! ${initiator.name} loses ${pointsLost} points for unsuccessful vote! (${downVotes} 👎 vs ${upVotes} 👍)`,
-        system: true
-      });
-    }
-  }
-
-  // Clear active vote and update players
-  room.game.activeVote = null;
-  io.to('game-room').emit('vote-ended');
-  io.to('game-room').emit('player-update', room.players);
-
-  // Start 5 second cooldown before next vote can be initiated
-  room.game.voteCooldownActive = true;
-  room.game.lastVoteEndTime = Date.now();
-  io.to('game-room').emit('vote-buttons-state', { disabled: true, reason: 'cooldown' });
-
-  setTimeout(() => {
-    room.game.voteCooldownActive = false;
-    io.to('game-room').emit('vote-buttons-state', { disabled: false });
-  }, 5000);
-}
-
 function startTurn() {
   room.players.forEach(p => p.hasGuessed = false);
+  io.to('game-room').emit('player-update', room.players);
 
-  // Reset vote state for new turn
-  if (room.game.activeVote && room.game.activeVote.timeout) {
-    clearTimeout(room.game.activeVote.timeout);
-  }
-  room.game.activeVote = null;
-  room.game.playersWhoInitiatedVote = new Set();
   room.game.lastRoundPoints = {};
 
   // Find next player who hasn't drawn this round
@@ -926,11 +748,15 @@ function startDrawingPhase(word) {
     io.to(drawer.id).emit('your-word', word);
   }
 
-  const numHints = room.settings.hints || 2;
+  const requestedHints = room.settings.hints || 2;
+  // Don't reveal more than half the (non-space) letters of short words
+  const letterCount = word.replace(/\s/g, '').length;
+  const maxHints = Math.max(0, Math.floor((letterCount - 1) / 2));
+  const numHints = Math.min(requestedHints, maxHints);
   const drawTime = room.settings.drawTime;
 
   for (let i = 1; i <= numHints; i++) {
-    const hintTime = Math.floor((drawTime - 5) * (i / (numHints + 1))) * 1000;
+    const hintTime = Math.max(1000, Math.floor((drawTime - 5) * (i / (numHints + 1))) * 1000);
     const timeout = setTimeout(() => revealHint(), hintTime);
     room.game.hintTimeouts.push(timeout);
   }
@@ -995,7 +821,6 @@ function endGame() {
   room.game.timer = 0;
   room.game.wordOptions = [];
   room.game.revealedIndices = [];
-  room.game.playerVoteCounts = {};  // Reset vote counts for new game
 
   room.players.forEach(p => {
     p.score = 0;

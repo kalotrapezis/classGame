@@ -1,5 +1,19 @@
 # ClassGame - Release Notes
 
+## v2.2.0 (2026-05-07)
+
+### ✨ Major Changes
+- **Voting system removed.** The 🗳️ vote-against-player feature has been fully removed (server handlers, client UI, and modal). Students reported that it caused the game to freeze and disrupted gameplay. Vote spam is no longer possible.
+
+### 🐛 Bug Fixes
+- **Avatar persistence:** The selected emoji avatar now persists across the host-redirect flow. Previously, when a student picked an avatar on the landing screen and clicked "Join Game", the redirect to the host would reset their avatar to the default 😀.
+- **Player list now updates at the start of each turn.** Previously the green "guessed" highlight from the prior turn lingered on the player list until the first guess of the new turn — now it clears immediately when a new turn begins.
+- **"Choose a word" overlay no longer leaks between players.** Fixed an HTML/JS id mismatch (`overlay-text` vs `overlay-message`) that caused stale word-choice buttons to appear on non-drawer screens. The overlay also no longer destroys its own message element.
+- **Hint reveal capped for short words.** Previously a 3-letter word with `hints=2` would reveal 2 of 3 letters, making the answer trivial. Hints are now capped at `floor((letters - 1) / 2)`, so at least half of each word stays hidden.
+- **Negative `setTimeout` guard:** Hint scheduling now clamps the delay to ≥1s, suppressing a `TimeoutNegativeWarning` that appeared with very short draw times.
+
+---
+
 ## v2.1.2 (2026-02-18)
 
 ### 🐛 Bug Fixes

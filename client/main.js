@@ -162,6 +162,8 @@ const ctx = canvas.getContext('2d');
 function init() {
     const savedName = localStorage.getItem('classgame_name');
     if (savedName) inputName.value = savedName;
+    const savedEmoji = localStorage.getItem('classgame_avatar');
+    if (savedEmoji) gameState.avatar.emoji = savedEmoji;
     renderAvatar();
     initializeColorPalette();
 
@@ -219,6 +221,7 @@ function renderAvatar() {
 function randomizeAvatar() {
     const emojis = ['😀', '😎', '🤓', '😊', '🥳', '🤩', '😇', '🤠', '🥸', '🤡', '👻', '👽', '🤖', '🐶', '🐱', '🐼'];
     gameState.avatar.emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    localStorage.setItem('classgame_avatar', gameState.avatar.emoji);
     renderAvatar();
 }
 
@@ -474,6 +477,7 @@ btnRandomAvatar.addEventListener('click', randomizeAvatar);
 document.querySelectorAll('.emoji-option').forEach(btn => {
     btn.addEventListener('click', () => {
         gameState.avatar.emoji = btn.dataset.emoji;
+        localStorage.setItem('classgame_avatar', gameState.avatar.emoji);
         renderAvatar();
     });
 });
@@ -628,76 +632,10 @@ canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(
 canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
 canvas.addEventListener('touchend', stopDrawing);
 
-// --- VOTING SYSTEM ---
-let voteTimerInterval = null;
-let votingDisabled = false;  // Track if vote buttons should be disabled
-let myVotingCapabilityRemoved = false;  // Track if this player lost voting privilege
-
-// Vote modal button handlers
-document.getElementById('btn-vote-up').addEventListener('click', () => {
-    socket.emit('cast-vote', { vote: 'up' });
-    document.getElementById('btn-vote-up').disabled = true;
-    document.getElementById('btn-vote-down').disabled = true;
-});
-
-document.getElementById('btn-vote-down').addEventListener('click', () => {
-    socket.emit('cast-vote', { vote: 'down' });
-    document.getElementById('btn-vote-up').disabled = true;
-    document.getElementById('btn-vote-down').disabled = true;
-});
-
-// Vote started - show modal
-socket.on('vote-started', (data) => {
-    const modal = document.getElementById('vote-modal');
-    document.getElementById('vote-target-name').textContent = data.targetName;
-    document.getElementById('vote-up-count').textContent = '0';
-    document.getElementById('vote-down-count').textContent = '0';
-    document.getElementById('btn-vote-up').disabled = false;
-    document.getElementById('btn-vote-down').disabled = false;
-    modal.classList.remove('hidden');
-
-    // Start countdown timer
-    let timeLeft = 20;
-    document.getElementById('vote-timer').textContent = timeLeft;
-    if (voteTimerInterval) clearInterval(voteTimerInterval);
-    voteTimerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById('vote-timer').textContent = timeLeft;
-        if (timeLeft <= 0) clearInterval(voteTimerInterval);
-    }, 1000);
-});
-
-// Vote update - update counts
-socket.on('vote-update', (data) => {
-    document.getElementById('vote-up-count').textContent = data.upVotes || 0;
-    document.getElementById('vote-down-count').textContent = data.downVotes || 0;
-});
-
-// Vote ended - hide modal
-socket.on('vote-ended', () => {
-    document.getElementById('vote-modal').classList.add('hidden');
-    if (voteTimerInterval) clearInterval(voteTimerInterval);
-});
-
-// Vote buttons state (disabled during active vote or cooldown)
-socket.on('vote-buttons-state', (data) => {
-    votingDisabled = data.disabled;
-    renderPlayerList();  // Re-render to update button states
-});
-
-// Vote capability removed for this player
-socket.on('vote-capability-removed', () => {
-    myVotingCapabilityRemoved = true;
-    renderPlayerList();
-});
-
 // Force restart - return to lobby (triggered by host)
 socket.on('force-restart', () => {
     console.log('Force restart received - returning to lobby');
     showScreen('lobby');
-    // Reset client-side voting state
-    votingDisabled = false;
-    myVotingCapabilityRemoved = false;
 });
 
 // Force restart button handler (Electron app only)
@@ -870,6 +808,8 @@ socket.on('turn-update', (data) => {
     gameState.drawerId = data.drawerId;
     renderPlayerList();
 
+    document.getElementById('word-selection').classList.add('hidden');
+
     const isMe = data.drawerId === socket.id;
     const toolbar = document.querySelector('.toolbar');
 
@@ -887,25 +827,25 @@ socket.on('turn-update', (data) => {
 
 socket.on('word-selection', (words) => {
     const overlay = document.getElementById('canvas-overlay');
-    overlay.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
-            <h2 style="color: white; margin: 0;">Choose a word</h2>
-            <div class="word-choices">
-                ${words.map(w => `<button class="btn-word">${w}</button>`).join('')}
-            </div>
-        </div>
-    `;
+    const msg = document.getElementById('overlay-message');
+    const wordSelDiv = document.getElementById('word-selection');
+    const choices = wordSelDiv.querySelector('.word-choices');
+    msg.textContent = 'Choose a word:';
+    choices.innerHTML = words.map(w => `<button class="btn-word">${w}</button>`).join('');
+    wordSelDiv.classList.remove('hidden');
     overlay.classList.remove('hidden');
 
-    overlay.querySelectorAll('.btn-word').forEach(btn => {
+    choices.querySelectorAll('.btn-word').forEach(btn => {
         btn.addEventListener('click', () => {
             socket.emit('select-word', { word: btn.textContent });
+            wordSelDiv.classList.add('hidden');
             overlay.classList.add('hidden');
         });
     });
 });
 
 socket.on('drawing-phase-start', (data) => {
+    document.getElementById('word-selection').classList.add('hidden');
     document.getElementById('canvas-overlay').classList.add('hidden');
     clearCanvas();
     document.getElementById('word-display').textContent = new Array(data.wordLength).fill('_').join(' ');
@@ -989,12 +929,7 @@ function renderPlayerList() {
         if (p.hasGuessed) div.classList.add('has-guessed');
 
         const isDrawer = gameState.drawerId === p.id;
-        const isMe = p.id === socket.id;
         const rank = rankMap.get(p.id) || 0;
-
-        // Show vote icon only in game, not for self, not if voting disabled or capability removed
-        const showVoteIcon = gameState.screen === 'game' && !isMe && !myVotingCapabilityRemoved;
-        const voteButtonDisabled = votingDisabled ? 'vote-disabled' : '';
 
         div.innerHTML = `
             <span class="player-rank">${gameState.screen === 'game' ? rank + '.' : ''}</span>
@@ -1003,20 +938,9 @@ function renderPlayerList() {
                 <span class="player-name">${escapeHtml(p.name)} ${p.isHost ? '👑' : ''} ${isDrawer ? '✏️' : ''}</span>
                 <span class="player-score">Points: ${p.score || 0}</span>
             </div>
-            ${showVoteIcon ? `<button class="btn-vote-player ${voteButtonDisabled}" data-player-id="${p.id}" title="Start vote against ${escapeHtml(p.name)}">🗳️</button>` : ''}
         `;
         list.appendChild(div);
     });
-
-    // Add click handlers for vote icons (only if not disabled)
-    if (gameState.screen === 'game') {
-        list.querySelectorAll('.btn-vote-player:not(.vote-disabled)').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.dataset.playerId;
-                socket.emit('start-vote', { targetId });
-            });
-        });
-    }
 }
 
 function escapeHtml(text) {

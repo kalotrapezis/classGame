@@ -212,9 +212,8 @@
         <div class="panel game-canvas-container">
           <canvas id="drawing-canvas"></canvas>
           <div id="canvas-overlay" class="hidden">
-            <div id="overlay-text">Waiting for round to start...</div>
+            <div id="overlay-message">Waiting for round to start...</div>
             <div id="word-selection" class="hidden">
-              <div>Choose a word:</div>
               <div class="word-choices">
                 <!-- Word buttons will be inserted here -->
               </div>
@@ -253,22 +252,6 @@
         </div>
       </div>
 
-      <div class="game-footer">
-        <!-- Vote modal will be shown here when active -->
-        <div id="vote-modal" class="vote-modal hidden">
-          <div class="vote-content">
-            <div class="vote-title">🗳️ Vote: <span id="vote-target-name">Player</span></div>
-            <div class="vote-buttons">
-              <button id="btn-vote-up" class="btn-green">👍 Keep</button>
-              <button id="btn-vote-down" class="btn-orange">👎 Penalize</button>
-            </div>
-            <div class="vote-status">
-              <span id="vote-up-count">0</span> 👍 vs <span id="vote-down-count">0</span> 👎
-            </div>
-            <div class="vote-timer">Time: <span id="vote-timer">20</span>s</div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 

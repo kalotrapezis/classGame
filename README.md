@@ -1,4 +1,4 @@
-# ClassGame (v2.0.1)
+# ClassGame (v2.2.0)
 
 A local multiplayer drawing and guessing game inspired by Skribbl.io. Players take turns drawing while others try to guess the word!
 
@@ -8,7 +8,6 @@ A local multiplayer drawing and guessing game inspired by Skribbl.io. Players ta
 - 🎮 **Multiplayer Fun** - Play with friends on your local network
 - 🔗 **Simple Joining** - Just share `192.168.x.x:3001` - no room codes needed!
 - 📍 **Smart IP** - Players only need to enter the last digits of the Host IP to connect.
-- 🗳️ **Anti-Cheat Voting** - Vote against suspected cheaters with 4000 point penalties
 - 🏆 **Scoring System** - Points based on how quickly you guess (2000 max, 100 min)
 - 🔄 **Score Recovery** - Reconnecting players get their score back automatically
 - 💡 **Hint System** - Random letters reveal automatically during the game
