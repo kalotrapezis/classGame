@@ -1,5 +1,12 @@
 # ClassGame - Release Notes
 
+## v2.2.2 (2026-05-07)
+
+### 🐛 Bug Fixes
+- **Drawing cursor visibility:** The custom crosshair cursor was almost invisible on a white canvas (the white core was painted on top of the black, leaving only a thin black halo) and the SVG markup was broken (missing `/>` on the last `<line>`). Rebuilt as a proper dual-tone cursor — a thick white halo drawn first with a thinner black core on top — so the crosshair is clearly visible on any background colour.
+
+---
+
 ## v2.2.1 (2026-05-07)
 
 ### 🐛 Bug Fixes
